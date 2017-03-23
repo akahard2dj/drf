@@ -8,16 +8,17 @@ from board.permissions import IsOwnerOrReadOnly
 
 
 class PostSerializer(serializers.ModelSerializer):
-    owner = serializers.ReadOnlyField(source='owner.username')
+    owner = serializers.ReadOnlyField(source='owner.email')
     class Meta:
         model = Post
         fields = ('id', 'owner', 'title',  'created_at', 'views')
 
 
 class PostDetailSerializer(serializers.ModelSerializer):
+    owner = serializers.ReadOnlyField(source='owner.email')
     class Meta:
         model = Post
-        fields = ('id', 'title', 'content', 'created_at', 'modified_at', 'views')
+        fields = ('id', 'owner', 'title', 'content', 'created_at', 'modified_at', 'views')
 
 
 class UserSerializer(serializers.ModelSerializer):
