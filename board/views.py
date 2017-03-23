@@ -74,13 +74,14 @@ class PostList(APIView):
         serializer = PostSerializer(posts, many=True)
         return Response(serializer.data)
 
+    '''
     def post(self, request, format=None):
         serializer = PostSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    '''
 
 class PostDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Post.objects.all()
@@ -88,12 +89,17 @@ class PostDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PostDetailSerializer
 
 
-class UserList(generics.ListAPIView):
-    queryset = MyUser.objects.all()
-    serializer_class = UserSerializer
+class UserDetail(APIView):
+    permission_classes = (permissions.IsAuthenticated, )
 
+    def get(self, request, format=None):
+        user = MyUser.objects.get(email=request.user)
+        serializer = UserDetailSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
+'''
 class UserDetail(generics.RetrieveAPIView):
     queryset = MyUser.objects.all()
     serializer_class = UserDetailSerializer
     permissions_classes = (permissions.IsAuthenticated, IsOwnerOrReadOnly,)
+'''
