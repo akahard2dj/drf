@@ -19,7 +19,7 @@ class Mailer:
     def __generate_messages(self, subject, content, to_emails):
         messages = []
         for recipient in to_emails:
-            message_content = "Test Message"
+            message_content = 'Code: {}'.format(content)
             message = EmailMessage(subject, message_content, to=[recipient], from_email=self.from_email)
             messages.append(message)
         return messages

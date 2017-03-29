@@ -10,6 +10,7 @@ from rest_framework.authtoken.models import Token
 
 from django.views.decorators.cache import cache_page, never_cache
 from django.utils.decorators import method_decorator
+from django.utils.datastructures import MultiValueDictKeyError
 from django.core.cache import cache
 
 from board.models import Post
@@ -18,21 +19,62 @@ from board.serializers import PostSerializer, PostDetailSerializer, PostAddSeria
 from board.serializers import UserSerializer, UserDetailSerializer
 
 from core.models import MyUser
+from core.celery_email import Mailer
+from core.utils import random_digit_and_number
 
 @api_view(['POST'])
-def set_cache(request):
-    cache.set('a-unique-key', 'this is a string which will be cached', timeout=10)
+def pre_check(request):
+    data = request.data
 
-    print(cache.get('a-unique-key'))
-    content = {'msg': 'success-asdf'}
-    return Response(content, status=status.HTTP_200_OK)
+    try:
+        token = data['token']
+    except MultiValueDictKeyError:
+        return Response({'msg': 'No Token'}, status=status.HTTP_401_UNAUTHORIZED)
 
-@api_view(['POST'])
-@cache_page(60*1)
-def cache_page(request):
-    content = {'key': cache.get('a-unique-key')}
-    return Response(content, status=status.HTTP_200_OK)
+    try:
+        token_user = Token.objects.get(key=token)
+    except Token.DoesNotExist:
+        return Response({'msg': 'Invalid Token'}, status=status.HTTP_401_UNAUTHORIZED)
     
+    return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
+
+
+@api_view(['POST'])
+def gen_auth_key(request):
+    data = request.data
+    key = data['email']
+    temp_value = random_digit_and_number(length_of_value=6)
+    if cache.get(key):
+        return Response({'msg': 'processing Authorization, check the own email'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    else:
+        cache.set(key, temp_value, timeout=300)
+        m = Mailer()
+        m.send_messages('Authorization Code', temp_value, [key])
+
+        return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
+
+
+@api_view(['POST'])
+def confirm_auth_key(request):
+    data = request.data
+    auth_key = data['auth_key']
+    key = data['email']
+    value_from_cache = cache.get(key)
+    if auth_key == value_from_cache:
+        registration_session_code = random_digit_and_number(length_of_value=16)
+        cache.delete(key)
+
+        try:
+            user_from_db = MyUser.objects.get(email=key)
+        except MyUser.DoesNotExist:        
+            cache.set('{}-confirm'.format(key), registration_session_code, timeout=600)
+            return Response({'msg': 'new user', 'code': registration_session_code}, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response({'msg': 'existed user'}, status=status.HTTP_202_ACCEPTED)
+
+    else:
+        return Response({'msg': 'failed'}, status=status.HTTP_401_UNAUTHORIZED)
+
 
 @api_view(['GET'])
 @permission_classes((permissions.IsAuthenticated,))
@@ -45,9 +87,24 @@ def example_view(request, format=None):
 
 @api_view(['POST'])
 def registration(request):
-    print("registration")
+    data = request.data
+    try:
+        reg_auth_code = data['reg_auth_code']
+    except MultiValueDictKeyError:
+        return Response({'msg': 'No registration authorization code'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    key = data['email']
+    value_from_cache = cache.get('{}-confirm'.format(key))
+    if reg_auth_code == value_from_cache:
+        cache.delete('{}-conrim'.format(key))
+        user = MyUser()
+        user.email = key
+        user.save()
+        return Response({'msg': 'success'}, status=status.HTTP_201_CREATED)
+'''
+
+
     if request.method == 'POST':
-        data = request.data
         email = data['email']
 
         try:
@@ -61,8 +118,8 @@ def registration(request):
             user.set_password('test1234')
             user.save()
             return Response({'msg': 'success'}, status=status.HTTP_200_OK)
-
-
+'''
+'''
 @api_view(['POST'])
 def registration_confirmation(request):
     if request.method == 'POST':
@@ -84,7 +141,7 @@ def registration_confirmation(request):
                 return Response({'msg': 'token has already issued'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         else:
             return Response({'msg': 'failed'}, status=status.HTTP_401_UNAUTHORIZED)
-
+'''
 
 class PostList(APIView):
     permission_classes = (permissions.IsAuthenticated,)
