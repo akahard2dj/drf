@@ -8,12 +8,31 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 
+from django.views.decorators.cache import cache_page, never_cache
+from django.utils.decorators import method_decorator
+from django.core.cache import cache
+
 from board.models import Post
 from board.permissions import IsOwnerOrReadOnly
-from board.serializers import PostSerializer, PostDetailSerializer
+from board.serializers import PostSerializer, PostDetailSerializer, PostAddSerializer
 from board.serializers import UserSerializer, UserDetailSerializer
 
 from core.models import MyUser
+
+@api_view(['POST'])
+def set_cache(request):
+    cache.set('a-unique-key', 'this is a string which will be cached', timeout=10)
+
+    print(cache.get('a-unique-key'))
+    content = {'msg': 'success-asdf'}
+    return Response(content, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@cache_page(60*1)
+def cache_page(request):
+    content = {'key': cache.get('a-unique-key')}
+    return Response(content, status=status.HTTP_200_OK)
+    
 
 @api_view(['GET'])
 @permission_classes((permissions.IsAuthenticated,))
@@ -26,6 +45,7 @@ def example_view(request, format=None):
 
 @api_view(['POST'])
 def registration(request):
+    print("registration")
     if request.method == 'POST':
         data = request.data
         email = data['email']
@@ -69,6 +89,7 @@ def registration_confirmation(request):
 class PostList(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
+    @method_decorator(never_cache)
     def get(self, request, format=None):
         posts = Post.objects.all()
         serializer = PostSerializer(posts, many=True)
@@ -90,8 +111,7 @@ class PostAdd(APIView):
     def post(self, request, format=None):
         item = request.data
         item.update({'owner': request.user.id})
-
-        serializer = PostDetailSerializer(data=item)
+        serializer = PostAddSerializer(data=item)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)

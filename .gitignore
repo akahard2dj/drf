@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# venv
+venv/
+
+# db migrations folder
+core/migrations/
+board/migrations/
+
 # C extensions
 *.so
 

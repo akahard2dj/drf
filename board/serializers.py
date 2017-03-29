@@ -21,6 +21,12 @@ class PostDetailSerializer(serializers.ModelSerializer):
         fields = ('id', 'owner', 'title', 'content', 'created_at', 'modified_at', 'views')
 
 
+class PostAddSerializer(serializers.ModelSerializer):
+    owner = serializers.PrimaryKeyRelatedField(queryset=MyUser.objects.all())
+    class Meta:
+        model = Post
+        fields = ('id', 'owner', 'title', 'content', 'created_at', 'modified_at', 'views')
+
 class UserSerializer(serializers.ModelSerializer):
     posts = serializers.PrimaryKeyRelatedField(many=True, queryset=Post.objects.all())
 
