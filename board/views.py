@@ -22,6 +22,34 @@ from core.models import MyUser
 from core.celery_email import Mailer
 from core.utils import random_digit_and_number
 
+from celery import shared_task
+
+
+@api_view(['GET'])
+@permission_classes((permissions.IsAuthenticated,))
+def example_view(request, format=None):
+    content = {
+        'status': 'request was permitted'
+    }
+    return Response(content, status=status.HTTP_200_OK)
+
+@shared_task
+def add(x, y):
+    return x+y
+
+@api_view(['POST'])
+def celery_test(request):
+    #add.delay(10, 10)
+    #data = {'code':'af32fjl', 'status':'SENT'}
+    #cache.set('abc@abc.com', data)
+    value = cache.get('abc@abc.com')
+    if value:
+        print(value)
+    #value['status'] = 'CONFIRM'
+    #cache.set('abc@abc.com', value)
+    return Response({'msg': 'success'})
+
+
 @api_view(['POST'])
 def pre_check(request):
     data = request.data
@@ -44,10 +72,12 @@ def gen_auth_key(request):
     data = request.data
     key = data['email']
     temp_value = random_digit_and_number(length_of_value=6)
+
     if cache.get(key):
         return Response({'msg': 'processing Authorization, check the own email'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     else:
-        cache.set(key, temp_value, timeout=300)
+        cache_data = {'code': temp_value, 'status': 'SENT'}
+        cache.set(key, cache_data, timeout=300)
         m = Mailer()
         m.send_messages('Authorization Code', temp_value, [key])
 
@@ -60,65 +90,44 @@ def confirm_auth_key(request):
     auth_key = data['auth_key']
     key = data['email']
     value_from_cache = cache.get(key)
-    if auth_key == value_from_cache:
-        registration_session_code = random_digit_and_number(length_of_value=16)
-        cache.delete(key)
-
-        try:
-            user_from_db = MyUser.objects.get(email=key)
-        except MyUser.DoesNotExist:        
-            cache.set('{}-confirm'.format(key), registration_session_code, timeout=600)
-            return Response({'msg': 'new user', 'code': registration_session_code}, status=status.HTTP_202_ACCEPTED)
-        else:
-            return Response({'msg': 'existed user'}, status=status.HTTP_202_ACCEPTED)
-
+    if not value_from_cache:
+        return Response({'msg': 'There is no credential information in cache'}, status=status.HTTP_401_UNAUTHORIZED)
     else:
-        return Response({'msg': 'failed'}, status=status.HTTP_401_UNAUTHORIZED)
+        if auth_key == value_from_cache['code']:
+            try:
+                user_from_db = MyUser.objects.get(email=key)
+            except MyUser.DoesNotExist:
+                value_from_cache['status'] = 'CONFIRM'
+                cache.set(key, value_from_cache, timeout=600)
+                return Response({'msg': 'new user'}, status=status.HTTP_202_ACCEPTED)
+            else:
+                cache.delete(key)
+                return Response({'msg': 'existed user'}, status=status.HTTP_202_ACCEPTED)
 
-
-@api_view(['GET'])
-@permission_classes((permissions.IsAuthenticated,))
-def example_view(request, format=None):
-    content = {
-        'status': 'request was permitted'
-    }
-    return Response(content, status=status.HTTP_200_OK)
-
+        else:
+            return Response({'msg': 'failed'}, status=status.HTTP_401_UNAUTHORIZED)
+    
 
 @api_view(['POST'])
 def registration(request):
     data = request.data
-    try:
-        reg_auth_code = data['reg_auth_code']
-    except MultiValueDictKeyError:
-        return Response({'msg': 'No registration authorization code'}, status=status.HTTP_401_UNAUTHORIZED)
-
     key = data['email']
-    value_from_cache = cache.get('{}-confirm'.format(key))
-    if reg_auth_code == value_from_cache:
-        cache.delete('{}-conrim'.format(key))
-        user = MyUser()
-        user.email = key
-        user.save()
-        return Response({'msg': 'success'}, status=status.HTTP_201_CREATED)
-'''
+    auth_key = data['auth_key']
+    value_from_cache = cache.get(key)
 
-
-    if request.method == 'POST':
-        email = data['email']
-
-        try:
-            _ = MyUser.objects.get(email=email)
-
-            return Response({'msg': 'failed'}, status=status.HTTP_406_NOT_ACCEPTABLE)
-
-        except MyUser.DoesNotExist:
+    if not value_from_cache:
+        return Response({'msg':'There is no credential information in cache'}, status=status.HTTP_401_UNAUTHORIZED)
+    else:
+        if auth_key == value_from_cache['code']:
             user = MyUser()
-            user.email = email
-            user.set_password('test1234')
+            user.nickname = random_digit_and_number()
+            user.email = key
             user.save()
-            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
-'''
+            cache.delete(key)
+            return Response({'msg': 'success'}, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'msg': 'invalid code'}, status=status.HTTP_401_UNAUTHORIZED)
+        
 '''
 @api_view(['POST'])
 def registration_confirmation(request):
