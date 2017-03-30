@@ -4,6 +4,12 @@ from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
 from core.utils import random_digit_and_number
 
 
+class GroupCategory(models.Model):
+    name = models.CharField(null=False, max_length=30, unique=True)
+    domain = models.CharField(null=False, max_length=100)
+    group_code = models.IntegerField(null=False)
+
+
 class MyUserManager(BaseUserManager):
     def create_user(self, email, password=None):
         if not email:
@@ -37,6 +43,7 @@ class MyUser(AbstractBaseUser):
         unique=True,
     )
     nickname = models.CharField(null=False, max_length=100, default=random_digit_and_number)
+    category = models.ManyToManyField(GroupCategory)
     #date_of_birth = models.DateField()
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
