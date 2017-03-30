@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
 
+from core.utils import random_digit_and_number
+
 
 class MyUserManager(BaseUserManager):
     def create_user(self, email, password=None):
