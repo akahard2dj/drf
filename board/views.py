@@ -3,12 +3,14 @@ from django.contrib.auth import authenticate
 from rest_framework import generics
 from rest_framework import permissions
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 
-from django.views.decorators.cache import cache_page, never_cache
+from django.views.decorators.cache import cache_page
+from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
 from django.utils.datastructures import MultiValueDictKeyError
 from django.core.cache import cache
@@ -19,21 +21,14 @@ from board.serializers import PostSerializer, PostDetailSerializer, PostAddSeria
 from board.serializers import UserSerializer, UserDetailSerializer
 
 from core.models import MyUser
+from core.models import GroupCategory
 from core.celery_email import Mailer
 from core.utils import random_digit_and_number
 
-from celery import shared_task
+from celery import shared_task, task
+from celery.result import ResultBase
 
-
-@api_view(['GET'])
-@permission_classes((permissions.IsAuthenticated,))
-def example_view(request, format=None):
-    content = {
-        'status': 'request was permitted'
-    }
-    return Response(content, status=status.HTTP_200_OK)
-
-@shared_task
+@shared_task()
 def add(x, y):
     return x+y
 
@@ -42,13 +37,14 @@ def celery_test(request):
     #add.delay(10, 10)
     #data = {'code':'af32fjl', 'status':'SENT'}
     #cache.set('abc@abc.com', data)
-    value = cache.get('abc@abc.com')
-    if value:
-        print(value)
+    #value = cache.get('abc@abc.com')
+    #if value:
+    #    print(value)
     #value['status'] = 'CONFIRM'
     #cache.set('abc@abc.com', value)
-    return Response({'msg': 'success'})
+    add.apply_async((10,10),)
 
+    return Response({'msg': 'success'})
 
 @api_view(['POST'])
 def pre_check(request):
@@ -72,14 +68,14 @@ def gen_auth_key(request):
     data = request.data
     key = data['email']
     temp_value = random_digit_and_number(length_of_value=6)
-
+    print(temp_value)
     if cache.get(key):
         return Response({'msg': 'processing Authorization, check the own email'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     else:
         cache_data = {'code': temp_value, 'status': 'SENT'}
         cache.set(key, cache_data, timeout=300)
-        m = Mailer()
-        m.send_messages('Authorization Code', temp_value, [key])
+        #m = Mailer()
+        #m.send_messages('Authorization Code', temp_value, [key])
 
         return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
 
@@ -106,7 +102,17 @@ def confirm_auth_key(request):
 
         else:
             return Response({'msg': 'failed'}, status=status.HTTP_401_UNAUTHORIZED)
-    
+
+
+
+@api_view(['GET'])
+@permission_classes((permissions.IsAuthenticated,))
+def example_view(request, format=None):
+    content = {
+        'status': 'request was permitted'
+    }
+    return Response(content, status=status.HTTP_200_OK)
+
 
 @api_view(['POST'])
 def registration(request):
@@ -127,7 +133,26 @@ def registration(request):
             return Response({'msg': 'success'}, status=status.HTTP_201_CREATED)
         else:
             return Response({'msg': 'invalid code'}, status=status.HTTP_401_UNAUTHORIZED)
-        
+
+
+'''
+
+
+    if request.method == 'POST':
+        email = data['email']
+
+        try:
+            _ = MyUser.objects.get(email=email)
+
+            return Response({'msg': 'failed'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        except MyUser.DoesNotExist:
+            user = MyUser()
+            user.email = email
+            user.set_password('test1234')
+            user.save()
+            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+'''
 '''
 @api_view(['POST'])
 def registration_confirmation(request):
@@ -155,20 +180,25 @@ def registration_confirmation(request):
 class PostList(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
+    def check_category(self, request):
+        current_user = MyUser.objects.get(pk=request.user.id)
+        try:
+            _ = current_user.category.get(id=request.data['category_code'])
+        except GroupCategory.DoesNotExist:
+            return False
+
+        return True
+
     @method_decorator(never_cache)
     def get(self, request, format=None):
-        posts = Post.objects.all()
-        serializer = PostSerializer(posts, many=True)
-        return Response(serializer.data)
+        is_access = self.check_category(request)
 
-    '''
-    def post(self, request, format=None):
-        serializer = PostSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    '''
+        if is_access:
+            posts = Post.objects.filter(category=request.data['category_code'])
+            serializer = PostSerializer(posts, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 class PostAdd(APIView):
@@ -176,8 +206,16 @@ class PostAdd(APIView):
 
     def post(self, request, format=None):
         item = request.data
-        item.update({'owner': request.user.id})
+        current_user = MyUser.objects.get(pk=request.user.id)
+        try:
+            _ = current_user.category.get(id=request.data['category_code'])
+        except GroupCategory.DoesNotExist:
+            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        item.update({'user': request.user.id})
+        item.update({'category': request.data['category_code']})
         serializer = PostAddSerializer(data=item)
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -187,6 +225,15 @@ class PostAdd(APIView):
 class PostDetail(APIView):
     permission_classes = (permissions.IsAuthenticated, )
 
+    def check_category(self, request):
+        current_user = MyUser.objects.get(pk=request.user.id)
+        try:
+            _ = current_user.category.get(id=request.data['category_code'])
+        except GroupCategory.DoesNotExist:
+            return False
+
+        return True
+
     def get_object(self, pk):
         try:
             return Post.objects.get(pk=pk)
@@ -194,32 +241,46 @@ class PostDetail(APIView):
             return Response({'msg': 'failed'}, status=status.HTTP_404_NOT_FOUND)
 
     def get(self, request, pk, format=None):
-        post = self.get_object(pk)
-        if request.user.id != post.owner_id:
-            view_count = post.views
-            post.views = view_count + 1
-            post.save()
-        serializer = PostDetailSerializer(post)
-        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        is_access = self.check_category(request)
+
+        if is_access:
+            post = self.get_object(pk)
+            if request.user.id != post.user_id:
+                view_count = post.views
+                post.views = view_count + 1
+                post.save()
+            serializer = PostDetailSerializer(post)
+            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     def put(self, request, pk):
-        post = self.get_object(pk)
-        item = request.data
-        item.update({'owner': request.user.id})
+        is_access = self.check_category(request)
 
-        serializer = PostDetailSerializer(data=item)
-        if serializer.is_valid():
-            post.title = item['title']
-            post.content = item['content']
-            post.save()
-            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if is_access:
+            post = self.get_object(pk)
+            item = request.data
+            item.update({'user': request.user.id})
 
+            serializer = PostDetailSerializer(data=item)
+            if serializer.is_valid():
+                post.title = item['title']
+                post.content = item['content']
+                post.save()
+                return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     def delete(self, request, pk):
-        post = self.get_object(pk)
-        post.delete()
-        return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
+        is_access = self.check_category(request)
+
+        if is_access:
+            post = self.get_object(pk)
+            post.delete()
+            return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 class UserDetail(APIView):
