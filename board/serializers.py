@@ -1,31 +1,38 @@
 from rest_framework import serializers
 from rest_framework import permissions
 
-#from django.contrib.auth.models import User
-from core.models import MyUser
+from core.models import MyUser 
+from core.models import GroupCategory
 from board.models import Post
 from board.permissions import IsOwnerOrReadOnly
 
 
 class PostSerializer(serializers.ModelSerializer):
-    owner = serializers.ReadOnlyField(source='owner.email')
+    user = serializers.ReadOnlyField(source='user.nickname')
+    category = serializers.ReadOnlyField(source='category.name')
+
     class Meta:
         model = Post
-        fields = ('id', 'owner', 'title',  'created_at', 'views')
+        fields = ('id', 'user', 'category', 'title',  'created_at', 'views')
 
 
 class PostDetailSerializer(serializers.ModelSerializer):
-    owner = serializers.ReadOnlyField(source='owner.email')
+    user = serializers.ReadOnlyField(source='user.nickname')
+    category = serializers.ReadOnlyField(source='category.name')
+
     class Meta:
         model = Post
-        fields = ('id', 'owner', 'title', 'content', 'created_at', 'modified_at', 'views')
+        fields = ('id', 'user', 'category', 'title', 'content', 'created_at', 'modified_at', 'views')
 
 
 class PostAddSerializer(serializers.ModelSerializer):
-    owner = serializers.PrimaryKeyRelatedField(queryset=MyUser.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=MyUser.objects.all())
+    category = serializers.PrimaryKeyRelatedField(queryset=GroupCategory.objects.all())
+
     class Meta:
         model = Post
-        fields = ('id', 'owner', 'title', 'content', 'created_at', 'modified_at', 'views')
+        fields = ('id', 'user', 'category', 'title', 'content', 'created_at', 'modified_at', 'views')
+
 
 class UserSerializer(serializers.ModelSerializer):
     posts = serializers.PrimaryKeyRelatedField(many=True, queryset=Post.objects.all())
