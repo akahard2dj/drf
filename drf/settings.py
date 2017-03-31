@@ -54,7 +54,7 @@ CACHES = {
 
 # Application definition
 
-AUTH_USER_MODEL = 'core.MyUser'
+AUTH_USER_MODEL = 'core.DonkeyUser'
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
