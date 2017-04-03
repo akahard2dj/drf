@@ -5,10 +5,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 
+from django.contrib.auth import authenticate
 from django.views.decorators.cache import (cache_page, never_cache)
 from django.utils.decorators import method_decorator
 from django.utils.datastructures import MultiValueDictKeyError
 from django.core.cache import cache
+from django.core import validators
 
 #from board.models import Post
 #from board.serializers import PostSerializer, PostDetailSerializer, PostAddSerializer
@@ -17,11 +19,14 @@ from django.core.cache import cache
 from core.models.donkey_user import DonkeyUser
 from core.models.category import (University, Department)
 from core.models.name_tag import NameTag
+from core.models.bulletin_board import BulletinBoard
+from core.models.connector import Connector
 from core.celery_email import Mailer
 from core.utils import random_digit_and_number
-from core.utils import is_valid_email
 
 from celery import shared_task
+
+from django.utils import timezone
 
 
 @shared_task()
@@ -36,7 +41,8 @@ def celery_test(request):
     return Response({'msg': 'success'})
 
 
-@api_view(['POST'])
+@never_cache
+@api_view(['GET'])
 def pre_check(request):
     request_data = request.data
 
@@ -45,6 +51,10 @@ def pre_check(request):
         token = request_data['token']
 
         if Token.objects.filter(key=token).exists():
+            token = Token.objects.get(key=token)
+            donkey_user = token.user
+            donkey_user.update_last_login()
+
             return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
         else:
             return Response({'msg': 'Invalid Token'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -60,27 +70,29 @@ def gen_auth_key(request):
     is_email_key = 'email' in request_data
     if is_email_key:
         key_email = request_data['email']
-
-        if is_valid_email(key_email):
-
+        try:
+            validators.validate_email(key_email)
+        except validators.ValidationError:
+            return Response({'msg': 'Invalid Email'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
             if cache.get(key_email):
-                return Response({'msg': 'processing Authorization, check the own email'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+                return Response({'msg': 'processing Authorization, check the own email'},
+                                status=status.HTTP_429_TOO_MANY_REQUESTS)
             else:
                 auth_code = random_digit_and_number(length_of_value=6)
                 print(auth_code)
                 cache_data = {'code': auth_code, 'status': 'SENT'}
                 cache.set(key_email, cache_data, timeout=300)
-                #m = Mailer()
-                #m.send_messages('Authorization Code', temp_value, [key])
+                # m = Mailer()
+                # m.send_messages('Authorization Code', temp_value, [key])
 
                 return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
-        else:
-            return Response({'msg': 'Invalid Email'}, status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response({'msg': 'No Email'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
-@api_view(['POST'])
+@never_cache
+@api_view(['GET'])
 def confirm_auth_key(request):
     request_data = request.data
 
@@ -111,7 +123,8 @@ def confirm_auth_key(request):
             return Response({'msg': 'failed'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-@api_view(['POST'])
+@never_cache
+@api_view(['GET'])
 def registration(request):
     request_data = request.data
 
@@ -131,22 +144,22 @@ def registration(request):
     else:
         if auth_code == value_from_cache['code']:
             user = DonkeyUser()
-            user.nickname = random_digit_and_number()
-            user_domain = key_email.split('@')[-1]
-            univ_from_db = University.objects.get(domain=user_domain)
+            try:
+                user.save(key_email=key_email)
+            except validators.ValidationError as e:
+                return Response({'msg': 'Not service {}'.format(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-            user.university = univ_from_db
+            # bulletin searching
+            joined_bulletins = BulletinBoard.objects.filter(university=user.university)
+            _ = Connector.objects.create(donkey_user=user)
+            connector_btw_user_board = Connector.objects.get(donkey_user=user)
 
-            user.department = Department.objects.get(pk=1)
-            user.email = key_email
-            user.save()
-
-            nametags = NameTag.objects.filter(university=univ_from_db)
-            for nametag in nametags:
-                nametag.user.add(user)
+            for bulletin in joined_bulletins:
+                connector_btw_user_board.set_bulletinboard_id(bulletin.id)
 
             cache.delete(key_email)
-            return Response({'msg': 'success'}, status=status.HTTP_201_CREATED)
+            token = Token.objects.get(user=user)
+            return Response({'msg': 'success', 'token': token.key}, status=status.HTTP_201_CREATED)
         else:
             return Response({'msg': 'invalid code'}, status=status.HTTP_401_UNAUTHORIZED)
 
