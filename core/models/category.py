@@ -1,6 +1,4 @@
 from django.db import models
-#from core.models.donkey_user import DonkeyUser
-#from core.models.name_tag import NameTag
 
 
 class University(models.Model):

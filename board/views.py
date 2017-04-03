@@ -1,23 +1,14 @@
-from rest_framework import permissions
 from rest_framework import status
-from rest_framework.decorators import (api_view, permission_classes)
-from rest_framework.views import APIView
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 
-from django.views.decorators.cache import (cache_page, never_cache)
-from django.utils.decorators import method_decorator
-from django.utils.datastructures import MultiValueDictKeyError
+from django.views.decorators.cache import never_cache
 from django.core.cache import cache
-
-#from board.models import Post
-#from board.serializers import PostSerializer, PostDetailSerializer, PostAddSerializer
-#from board.serializers import UserSerializer, UserDetailSerializer
 
 from core.models.donkey_user import DonkeyUser
 from core.models.category import (University, Department)
 from core.models.name_tag import NameTag
-from core.celery_email import Mailer
 from core.utils import random_digit_and_number
 from core.utils import is_valid_email
 
