@@ -25,8 +25,8 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['211.201.190.29']
-#ALLOWED_HOSTS = []
+# FIXME: For easy development.
+#ALLOWED_HOSTS = ['211.201.190.29']
 
 # E-Mail
 EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
@@ -43,12 +43,13 @@ CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
 # Redis 
 CACHES = {
         "default": {
-            #"BACKEND": "django_redis.cache.RedisCache",
-            "BACKEND": "redis_cache.RedisCache",
-            "LOCATION": os.environ.get('REDIS_LOCATION'),
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient"
-            },
+            # FIXME: For easy development.
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+            #"BACKEND": "redis_cache.RedisCache",
+            #"LOCATION": os.environ.get('REDIS_LOCATION'),
+            #"OPTIONS": {
+            #    "CLIENT_CLASS": "django_redis.client.DefaultClient"
+            #},
         }
 }
 

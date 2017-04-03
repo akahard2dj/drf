@@ -13,6 +13,8 @@ urlpatterns = [
 
     # registration : user registration
     url(r'^registration/$', views.registration),
+
+    url('^hello/', views.hello)
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)
