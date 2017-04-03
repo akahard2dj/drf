@@ -1,9 +1,10 @@
 from django.db import models
+from django.core import validators
 from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
+from django.utils import timezone
 
 from core.utils import random_digit_and_number
 from core.models.category import (University, Department)
-#from core.models.name_tag import NameTag
 
 
 class DonkeyUserManager(BaseUserManager):
@@ -38,9 +39,10 @@ class DonkeyUser(AbstractBaseUser):
         unique=True,
     )
     nickname = models.CharField(null=False, max_length=100, default=random_digit_and_number)
-    university = models.OneToOneField(University)
+    university = models.ForeignKey(University)
     #department = models.OneToOneField(Department)
     #name_tag = models.ManyToManyField(NameTag, through='NameTag')
+    created_at = models.DateTimeField(default=timezone.now)
 
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
@@ -76,3 +78,29 @@ class DonkeyUser(AbstractBaseUser):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
+
+    def update_last_login(self):
+        self.last_login = timezone.now()
+        self.save()
+
+    def save(self, *args, **kwargs):
+        key_email = kwargs.pop('key_email')
+        email_domain = key_email.split('@')[-1]
+        try:
+            univ_from_db = University.objects.get(domain=email_domain)
+        except University.DoesNotExist:
+            raise validators.ValidationError('Not in university')
+        else:
+            self.email = key_email
+            self.university = univ_from_db
+            super(DonkeyUser, self).save(*args, **kwargs)
+        '''
+        user.nickname = random_digit_and_number()
+            user_domain = key_email.split('@')[-1]
+            univ_from_db = University.objects.get(domain=user_domain)
+
+            user.university = univ_from_db
+
+            #user.department = Department.objects.get(pk=1)
+            user.email = key_email
+        '''
