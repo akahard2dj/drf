@@ -142,7 +142,9 @@ def registration(request):
             return Response({'msg': 'invalid code'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-
+@api_view(['GET'])
+def hello(request):
+    return Response('hello')
 
     '''
 class PostList(APIView):
