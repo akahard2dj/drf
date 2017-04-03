@@ -142,6 +142,7 @@ def registration(request):
             return Response({'msg': 'invalid code'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
+# FIXME: To check system alive. Move proper location later.
 @api_view(['GET'])
 def hello(request):
     return Response('hello')
