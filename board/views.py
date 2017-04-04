@@ -1,16 +1,27 @@
+from rest_framework import permissions
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.decorators import (api_view, permission_classes)
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 
 from django.views.decorators.cache import never_cache
+from django.utils.decorators import method_decorator
 from django.core.cache import cache
+from django.core import validators
+
+from board.models import Article
+from board.serializers import ArticleSerializer
+from board.serializers import ArticleAddSerializer
+from board.serializers import ArticleDetailSerializer
 
 from core.models.donkey_user import DonkeyUser
-from core.models.category import (University, Department)
-from core.models.name_tag import NameTag
+from core.models.bulletin_board import BulletinBoard
+from core.models.connector import UserBoardConnector
+
+from core.celery_email import Mailer
 from core.utils import random_digit_and_number
-from core.utils import is_valid_email
 
 from celery import shared_task
 
@@ -27,7 +38,8 @@ def celery_test(request):
     return Response({'msg': 'success'})
 
 
-@api_view(['POST'])
+@never_cache
+@api_view(['GET'])
 def pre_check(request):
     request_data = request.data
 
@@ -36,6 +48,10 @@ def pre_check(request):
         token = request_data['token']
 
         if Token.objects.filter(key=token).exists():
+            token = Token.objects.get(key=token)
+            donkey_user = token.user
+            donkey_user.update_last_login()
+
             return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
         else:
             return Response({'msg': 'Invalid Token'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -51,27 +67,29 @@ def gen_auth_key(request):
     is_email_key = 'email' in request_data
     if is_email_key:
         key_email = request_data['email']
-
-        if is_valid_email(key_email):
-
+        try:
+            validators.validate_email(key_email)
+        except validators.ValidationError:
+            return Response({'msg': 'Invalid Email'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
             if cache.get(key_email):
-                return Response({'msg': 'processing Authorization, check the own email'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+                return Response({'msg': 'processing Authorization, check the own email'},
+                                status=status.HTTP_429_TOO_MANY_REQUESTS)
             else:
                 auth_code = random_digit_and_number(length_of_value=6)
                 print(auth_code)
                 cache_data = {'code': auth_code, 'status': 'SENT'}
                 cache.set(key_email, cache_data, timeout=300)
-                #m = Mailer()
-                #m.send_messages('Authorization Code', temp_value, [key])
+                # m = Mailer()
+                # m.send_messages('Authorization Code', temp_value, [key])
 
                 return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
-        else:
-            return Response({'msg': 'Invalid Email'}, status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response({'msg': 'No Email'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
-@api_view(['POST'])
+@never_cache
+@api_view(['GET'])
 def confirm_auth_key(request):
     request_data = request.data
 
@@ -102,7 +120,8 @@ def confirm_auth_key(request):
             return Response({'msg': 'failed'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-@api_view(['POST'])
+@never_cache
+@api_view(['GET'])
 def registration(request):
     request_data = request.data
 
@@ -122,143 +141,166 @@ def registration(request):
     else:
         if auth_code == value_from_cache['code']:
             user = DonkeyUser()
-            user.nickname = random_digit_and_number()
-            user_domain = key_email.split('@')[-1]
-            univ_from_db = University.objects.get(domain=user_domain)
+            try:
+                user.save(key_email=key_email)
+            except validators.ValidationError as e:
+                return Response({'msg': 'Not service {}'.format(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-            user.university = univ_from_db
+            # bulletin searching
+            joined_bulletins = BulletinBoard.objects.filter(university=user.university)
+            _ = UserBoardConnector.objects.create(donkey_user=user)
+            connector_btw_user_board = UserBoardConnector.objects.get(donkey_user=user)
 
-            user.department = Department.objects.get(pk=1)
-            user.email = key_email
-            user.save()
-
-            nametags = NameTag.objects.filter(university=univ_from_db)
-            for nametag in nametags:
-                nametag.user.add(user)
+            for bulletin in joined_bulletins:
+                connector_btw_user_board.set_bulletinboard_id(bulletin.id)
 
             cache.delete(key_email)
-            return Response({'msg': 'success'}, status=status.HTTP_201_CREATED)
+            token = Token.objects.get(user=user)
+            return Response({'msg': 'success', 'token': token.key}, status=status.HTTP_201_CREATED)
         else:
             return Response({'msg': 'invalid code'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-# FIXME: To check system alive. Move proper location later.
-@api_view(['GET'])
-def hello(request):
-    return Response('hello')
-
-    '''
-class PostList(APIView):
+class ArticleList(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
-    def check_category(self, request):
-        current_user = DonkeyUser.objects.get(pk=request.user.id)
-        try:
-            _ = current_user.category.get(id=request.data['category_code'])
-        except GroupCategory.DoesNotExist:
-            return False
-
-        return True
+    def check_bulletinboard(self, request):
+        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
 
     @method_decorator(never_cache)
     def get(self, request, format=None):
-        is_access = self.check_category(request)
+        request_data = request.data
+        is_board_id = 'board_id' in request_data
+
+        if is_board_id:
+            board_id = request.data['board_id']
+        else:
+            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_access = self.check_bulletinboard(request)
 
         if is_access:
-            posts = Post.objects.filter(category=request.data['category_code'])
-            serializer = PostSerializer(posts, many=True)
+            articles = Article.objects.filter(board_id=board_id).exclude(status=2)
+            serializer = ArticleSerializer(articles, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
-class PostAdd(APIView):
+class ArticleAdd(APIView):
     permission_classes = (permissions.IsAuthenticated, )
+
+    def check_bulletinboard(self, request):
+        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
 
     def post(self, request, format=None):
-        item = request.data
-        current_user = MyUser.objects.get(pk=request.user.id)
-        try:
-            _ = current_user.category.get(id=request.data['category_code'])
-        except GroupCategory.DoesNotExist:
-            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        request_data = request.data
+        is_title = 'title' in request_data
+        is_content = 'content' in request_data
+        is_board_id = 'board_id' in request_data
 
-        item.update({'user': request.user.id})
-        item.update({'category': request.data['category_code']})
-        serializer = PostAddSerializer(data=item)
+        if is_title and is_content and is_board_id:
+            items = request_data
+        else:
+            return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        is_access = self.check_bulletinboard(request)
+
+        if is_access:
+            items.update({'user': request.user.id})
+            items.update({'board': request_data['board_id']})
+
+            serializer = ArticleAddSerializer(data=items)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
-class PostDetail(APIView):
+class ArticleDetail(APIView):
     permission_classes = (permissions.IsAuthenticated, )
 
-    def check_category(self, request):
-        current_user = MyUser.objects.get(pk=request.user.id)
-        try:
-            _ = current_user.category.get(id=request.data['category_code'])
-        except GroupCategory.DoesNotExist:
-            return False
-
-        return True
+    def check_bulletinboard(self, request):
+        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
 
     def get_object(self, pk):
         try:
-            return Post.objects.get(pk=pk)
-        except Post.DoesNotExist:
-            return Response({'msg': 'failed'}, status=status.HTTP_404_NOT_FOUND)
+            return Article.objects.get(pk=pk)
+        except Article.DoesNotExist:
+            return Response({'msg': 'not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    @method_decorator(never_cache)
     def get(self, request, pk, format=None):
-        is_access = self.check_category(request)
+        request_data = request.data
+        is_board_id = 'board_id' in request_data
 
-        if is_access:
-            post = self.get_object(pk)
-            if request.user.id != post.user_id:
-                view_count = post.views
-                post.views = view_count + 1
-                post.save()
-            serializer = PostDetailSerializer(post)
-            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        if is_board_id:
+            board_id = request.data['board_id']
         else:
-            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request, pk):
-        is_access = self.check_category(request)
-
+        is_access = self.check_bulletinboard(request)
         if is_access:
-            post = self.get_object(pk)
-            item = request.data
-            item.update({'user': request.user.id})
+            article = self.get_object(pk)
+            if int(board_id) != article.board_id:
+                return Response({'msg': 'abnormat request'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
-            serializer = PostDetailSerializer(data=item)
-            if serializer.is_valid():
-                post.title = item['title']
-                post.content = item['content']
-                post.save()
-                return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            if request.user.id != article.user_id:
+                article.increase_view_count()
+            serializer = ArticleDetailSerializer(article)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     def delete(self, request, pk):
-        is_access = self.check_category(request)
-
+        is_access = self.check_bulletinboard(request)
         if is_access:
-            post = self.get_object(pk)
-            post.delete()
-            return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
+            article = self.get_object(pk)
+            if article.user == request.user:
+                if article.status == 2:
+                    return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    article.status = 2
+                    article.save()
+
+                return Response({'msg': 'ok'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'msg': 'Invalid category code'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
+    def put(self, request, pk):
+        request_data = request.data
+        is_title = 'title' in request_data
+        is_content = 'content' in request_data
+        is_board_id = 'board_id' in request_data
 
-class UserDetail(APIView):
-    permission_classes = (permissions.IsAuthenticated, )
+        if is_title and is_content and is_board_id:
+            items = request_data
+        else:
+            return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request, format=None):
-        user = MyUser.objects.get(email=request.user)
-        serializer = UserDetailSerializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    '''
+        is_access = self.check_bulletinboard(request)
+        if is_access:
+            article = self.get_object(pk)
+            if article.user == request.user:
+                items.update({'user': request.user.id})
+                items.update({'board': request_data['board_id']})
+                serializer = ArticleAddSerializer(data=items)
+                if serializer.is_valid():
+                    article.title = items['title']
+                    article.content = items['content']
+                    article.save()
+                    return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)

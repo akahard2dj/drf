@@ -1,3 +1,4 @@
 from .donkey_user import DonkeyUser
 from .category import (University, Department)
-from .name_tag import NameTag
+from .connector import UserBoardConnector
+from .bulletin_board import BulletinBoard
