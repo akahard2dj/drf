@@ -15,7 +15,3 @@ def get_db(name):
 
 def get(name):
     return config.get('DEFAULT', name)
-
-
-def get_secret(name):
-    return config.get('SECRET', name)
