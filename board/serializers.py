@@ -1,51 +1,33 @@
 from rest_framework import serializers
-from rest_framework import permissions
 
-#from core.models import MyUser, GroupCategory
-#from board.models import Post
-from board.permissions import IsOwnerOrReadOnly
+from core.models.donkey_user import DonkeyUser
+from core.models.bulletin_board import BulletinBoard
 
-'''
+from board.models import Article
 
-class PostSerializer(serializers.ModelSerializer):
+
+class ArticleSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.nickname')
-    category = serializers.ReadOnlyField(source='category.name')
+    board = serializers.ReadOnlyField(source='board.title')
 
     class Meta:
-        model = Post
-        fields = ('id', 'user', 'category', 'title',  'created_at', 'views')
+        model = Article
+        fields = ('id', 'user', 'board', 'title', 'views', 'likes', 'created_at')
 
 
-class PostDetailSerializer(serializers.ModelSerializer):
+class ArticleAddSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(queryset=DonkeyUser.objects.all())
+    board = serializers.PrimaryKeyRelatedField(queryset=BulletinBoard.objects.all())
+
+    class Meta:
+        model = Article
+        fields = ('id', 'user', 'board', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')
+
+
+class ArticleDetailSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.nickname')
-    category = serializers.ReadOnlyField(source='category.name')
+    board = serializers.ReadOnlyField(source='board.title')
 
     class Meta:
-        model = Post
-        fields = ('id', 'user', 'category', 'title', 'content', 'created_at', 'modified_at', 'views')
-
-
-class PostAddSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(queryset=MyUser.objects.all())
-    category = serializers.PrimaryKeyRelatedField(queryset=GroupCategory.objects.all())
-
-    class Meta:
-        model = Post
-        fields = ('id', 'user', 'category', 'title', 'content', 'created_at', 'modified_at', 'views')
-
-
-class UserSerializer(serializers.ModelSerializer):
-    posts = serializers.PrimaryKeyRelatedField(many=True, queryset=Post.objects.all())
-
-    class Meta:
-        model = MyUser
-        fields = ('id', 'email', 'posts')
-
-
-class UserDetailSerializer(serializers.ModelSerializer):
-    posts = serializers.PrimaryKeyRelatedField(many=True, queryset=Post.objects.all())
-
-    class Meta:
-        model = MyUser
-        fields = ('id', 'email', 'posts')
-'''
+        model = Article
+        fields = ('id', 'user', 'board', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')
