@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
 from core.models.category import (University, Department)
-from core.models.name_tag import NameTag
+from core.models.donkey_user import DonkeyUser
+from core.models.connector import UserBoardConnector
+from core.models.bulletin_board import BulletinBoard
 
 
 class Command(BaseCommand):
@@ -45,37 +47,71 @@ class Command(BaseCommand):
         d.name = '예체능'
         d.save()
 
-    def _create_name_tag(self):
-        a = NameTag()
-        a.group_title = 'auniv'
-        a.save()
-        a.university.add(University.objects.get(domain='auniv.ac.kr'))
+    def _create_bulletinboard(self):
+        univs = University.objects.all()
+        for univ in univs:
+            u = BulletinBoard()
+            u.title = univ.name
+            u.desc = univ.name
+            u.save()
+            u.university.add(univ)
+
+        u = BulletinBoard()
+        u.title = 'auniv/buniv'
+        u.desc = 'a/b join'
+        u.save()
+        u.university.add(University.objects.get(domain='auniv.ac.kr'))
+        u.university.add(University.objects.get(domain='buniv.ac.kr'))
 
 
-        b = NameTag()
-        b.group_title = 'buniv'
-        b.save()
-        b.university.add(University.objects.get(domain='buniv.ac.kr'))
-
-
-        c = NameTag()
-        c.group_title = 'cuniv'
+    def _create_user(self):
+        a = DonkeyUser()
+        a.save(key_email='test1@auniv.ac.kr')
+        c = UserBoardConnector()
+        c.donkey_user = a
         c.save()
-        c.university.add(University.objects.get(domain='cuniv.ac.kr'))
+        joined = BulletinBoard.objects.filter(university=a.university)
+        for j in joined:
+            c.set_bulletinboard_id(j.id)
 
+        a = DonkeyUser()
+        a.save(key_email='test1@buniv.ac.kr')
+        c = UserBoardConnector()
+        c.donkey_user = a
+        c.save()
+        joined = BulletinBoard.objects.filter(university=a.university)
+        for j in joined:
+            c.set_bulletinboard_id(j.id)
 
-        d = NameTag()
-        d.group_title = 'duniv'
-        d.save()
-        d.university.add(University.objects.get(domain='duniv.ac.kr'))
+        a = DonkeyUser()
+        a.save(key_email='test1@cuniv.ac.kr')
+        c = UserBoardConnector()
+        c.donkey_user = a
+        c.save()
+        joined = BulletinBoard.objects.filter(university=a.university)
+        for j in joined:
+            c.set_bulletinboard_id(j.id)
 
-        e = NameTag()
-        e.group_title = 'auniv/buniv'
-        e.save()
-        e.university.add(University.objects.get(domain='auniv.ac.kr'))
-        e.university.add(University.objects.get(domain='buniv.ac.kr'))
+        a = DonkeyUser()
+        a.save(key_email='test1@duniv.ac.kr')
+        c = UserBoardConnector()
+        c.donkey_user = a
+        c.save()
+        joined = BulletinBoard.objects.filter(university=a.university)
+        for j in joined:
+            c.set_bulletinboard_id(j.id)
+
+        a = DonkeyUser()
+        a.save(key_email='test2@auniv.ac.kr')
+        c = UserBoardConnector()
+        c.donkey_user = a
+        c.save()
+        joined = BulletinBoard.objects.filter(university=a.university)
+        for j in joined:
+            c.set_bulletinboard_id(j.id)
 
     def handle(self, *args, **options):
         self._create_univ()
         self._create_dept()
-        self._create_name_tag()
+        self._create_bulletinboard()
+        self._create_user()
