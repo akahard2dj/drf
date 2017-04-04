@@ -1,0 +1,7 @@
+[Django]
+DJANGO_SECRET_KEY:xxxxxxxxxxxxx
+
+[DB]
+DATABASE_NAME:xxxx
+DATABASE_USER:xxxx
+DATABASE_PASS:xxxx
