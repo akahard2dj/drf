@@ -3,16 +3,16 @@ from rest_framework import serializers
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
 
-from board.models import Article
+from mapi.models import Article
 
 
 class ArticleSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.nickname')
-    board = serializers.ReadOnlyField(source='board.title')
+    board = serializers.ReadOnlyField(source='mapi.title')
 
     class Meta:
         model = Article
-        fields = ('id', 'user', 'board', 'title', 'views', 'likes', 'created_at')
+        fields = ('id', 'user', 'mapi', 'title', 'views', 'likes', 'created_at')
 
 
 class ArticleAddSerializer(serializers.ModelSerializer):
@@ -21,13 +21,13 @@ class ArticleAddSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Article
-        fields = ('id', 'user', 'board', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')
+        fields = ('id', 'user', 'mapi', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')
 
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.nickname')
-    board = serializers.ReadOnlyField(source='board.title')
+    board = serializers.ReadOnlyField(source='mapi.title')
 
     class Meta:
         model = Article
-        fields = ('id', 'user', 'board', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')
+        fields = ('id', 'user', 'mapi', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')

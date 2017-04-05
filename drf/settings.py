@@ -80,7 +80,7 @@ INSTALLED_APPS = [
     'djcelery_email',
     'rest_framework',
     'rest_framework.authtoken',
-    'board.apps.BoardConfig',
+    'mapi.apps.BoardConfig',
     'core.apps.CoreConfig',
 ]
 

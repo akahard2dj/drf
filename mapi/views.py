@@ -11,10 +11,10 @@ from django.utils.decorators import method_decorator
 from django.core.cache import cache
 from django.core import validators
 
-from board.models import Article
-from board.serializers import ArticleSerializer
-from board.serializers import ArticleAddSerializer
-from board.serializers import ArticleDetailSerializer
+from mapi.models import Article
+from mapi.serializers import ArticleSerializer
+from mapi.serializers import ArticleAddSerializer
+from mapi.serializers import ArticleDetailSerializer
 
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
@@ -185,7 +185,7 @@ class ArticleList(APIView):
             serializer = ArticleSerializer(articles, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Invalid mapi id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 class ArticleAdd(APIView):
@@ -210,7 +210,7 @@ class ArticleAdd(APIView):
 
         if is_access:
             items.update({'user': request.user.id})
-            items.update({'board': request_data['board_id']})
+            items.update({'mapi': request_data['board_id']})
 
             serializer = ArticleAddSerializer(data=items)
 
@@ -219,7 +219,7 @@ class ArticleAdd(APIView):
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Invalid mapi id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 class ArticleDetail(APIView):
@@ -256,7 +256,7 @@ class ArticleDetail(APIView):
             serializer = ArticleDetailSerializer(article)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Invalid mapi id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     def delete(self, request, pk):
         is_access = self.check_bulletinboard(request)
@@ -273,7 +273,7 @@ class ArticleDetail(APIView):
             else:
                 return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Invalid mapi id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     def put(self, request, pk):
         request_data = request.data
@@ -291,7 +291,7 @@ class ArticleDetail(APIView):
             article = self.get_object(pk)
             if article.user == request.user:
                 items.update({'user': request.user.id})
-                items.update({'board': request_data['board_id']})
+                items.update({'mapi': request_data['board_id']})
                 serializer = ArticleAddSerializer(data=items)
                 if serializer.is_valid():
                     article.title = items['title']
@@ -303,4 +303,4 @@ class ArticleDetail(APIView):
             else:
                 return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            return Response({'msg': 'Invalid mapi id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
