@@ -304,3 +304,9 @@ class ArticleDetail(APIView):
                 return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'msg': 'Invalid mapi id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+@never_cache
+@api_view(['GET'])
+def hello(request):
+    return Response({'msg': 'hello'}, status=status.HTTP_200_OK)
