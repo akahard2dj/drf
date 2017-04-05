@@ -3,7 +3,7 @@ from rest_framework import serializers
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
 
-from board.models import Article
+from mapi.models import Article
 
 
 class ArticleSerializer(serializers.ModelSerializer):

@@ -69,6 +69,7 @@ REST_FRAMEWORK = {
     )
 }
 
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -80,8 +81,9 @@ INSTALLED_APPS = [
     'djcelery_email',
     'rest_framework',
     'rest_framework.authtoken',
-    'board.apps.BoardConfig',
+    'mapi.apps.MApiConfig',
     'core.apps.CoreConfig',
+    'batch.apps.BatchConfig',
 ]
 
 MIDDLEWARE = [

@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
@@ -11,10 +12,10 @@ from django.utils.decorators import method_decorator
 from django.core.cache import cache
 from django.core import validators
 
-from board.models import Article
-from board.serializers import ArticleSerializer
-from board.serializers import ArticleAddSerializer
-from board.serializers import ArticleDetailSerializer
+from mapi.models import Article
+from mapi.serializers import ArticleSerializer
+from mapi.serializers import ArticleAddSerializer
+from mapi.serializers import ArticleDetailSerializer
 
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
@@ -304,3 +305,9 @@ class ArticleDetail(APIView):
                 return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+@never_cache
+@api_view(['GET'])
+def hello(request):
+    return HttpResponse('hello')
