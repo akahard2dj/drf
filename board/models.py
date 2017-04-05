@@ -5,6 +5,8 @@ from django.conf import settings
 
 from rest_framework.authtoken.models import Token
 
+from treebeard.mp_tree import MP_Node
+
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
 
@@ -37,9 +39,19 @@ class Article(models.Model):
 
     def increase_view_count(self):
         view = self.views
-        print(view)
         self.views = view + 1
         self.save()
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class ArticleReply(MP_Node):
+    article = models.ForeignKey(Article)
+    user = models.ForeignKey(DonkeyUser)
+    content = models.TextField(null=True)
+    status = models.IntegerField(default=0)
+    yellow_cards = models.IntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)

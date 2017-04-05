@@ -19,6 +19,10 @@ urlpatterns = [
     url(r'^articles/$', views.ArticleList.as_view(), name='articles'),
     url(r'^article-detail/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
 
+    # article-reply
+    url(r'^article-detail/(?P<article_pk>[0-9]+)/article_replies/$', views.ArticleReplyList.as_view(), name='article-reply'),
+    url(r'^article-detail/(?P<article_pk>[0-9]+)/article_replies/(?P<reply_pk>[0-9]+)/$', views.ArticleReplyDetail.as_view(), name='article-reply-detail'),
+
     # donkeyuser
     url(r'^donkeyuser/(?P<pk>[0-9]+)/$', views.UserDetail.as_view(), name='user-detail'),
 

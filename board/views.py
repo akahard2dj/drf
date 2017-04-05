@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.core import validators
 
 from board.models import Article
+from board.models import ArticleReply
 from board.serializers import ArticleSerializer
 from board.serializers import ArticleAddSerializer
 from board.serializers import ArticleDetailSerializer
@@ -294,6 +295,88 @@ class ArticleDetail(APIView):
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             else:
                 return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+class ArticleReplyList(APIView):
+    permission_classes = (permissions.IsAuthenticated, )
+
+    def check_bulletinboard(self, request):
+        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
+
+    @method_decorator(never_cache)
+    def get(self, request, article_pk, format=None):
+        request_data = request.data
+        is_board_id = 'board_id' in request_data
+
+        if is_board_id:
+            board_id = request.data['board_id']
+        else:
+            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_access = self.check_bulletinboard(request)
+        if is_access:
+            root_replies = ArticleReply.objects.filter(article_id=article_pk).filter(depth=1).all()
+            tmp = []
+            for root_reply in root_replies:
+                tmp.append(root_reply.dump_bulk())
+            print(tmp)
+            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+    def post(self, request, article_pk, format=None):
+        request_data = request.data
+        is_board_id = 'board_id' in request_data
+        is_content = 'content' in request_data
+
+        if is_board_id and is_content:
+            board_id = request.data['board_id']
+            content = request.data['content']
+        else:
+            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_access = self.check_bulletinboard(request)
+        if is_access:
+            reply = ArticleReply.add_root(
+                content=content,
+                article=Article.objects.get(pk=article_pk),
+                user=DonkeyUser.objects.get(pk=request.user.id)
+            )
+            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+class ArticleReplyDetail(APIView):
+    permission_classes = (permissions.IsAuthenticated, )
+
+    def check_bulletinboard(self, request):
+        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
+
+    def post(self, request, article_pk, reply_pk, format=None):
+        request_data = request.data
+        is_board_id = 'board_id' in request_data
+        is_content = 'content' in request_data
+
+        if is_board_id and is_content:
+            board_id = request.data['board_id']
+            content = request.data['content']
+        else:
+            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_access = self.check_bulletinboard(request)
+        if is_access:
+            get_reply = lambda node_id: ArticleReply.objects.filter(article_id=article_pk).get(pk=node_id)
+            sub_reply = get_reply(reply_pk).add_child(
+                content=content,
+                article_id=article_pk,
+                user_id=request.user.id
+            )
+            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 

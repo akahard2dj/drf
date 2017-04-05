@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     'djcelery_email',
     'rest_framework',
     'rest_framework.authtoken',
+    'treebeard',
     'board.apps.BoardConfig',
     'core.apps.CoreConfig',
 ]
