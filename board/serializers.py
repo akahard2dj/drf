@@ -4,6 +4,7 @@ from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
 
 from board.models import Article
+from board.models import ArticleReply
 
 
 class ArticleSerializer(serializers.ModelSerializer):
@@ -37,3 +38,11 @@ class DonkeyUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = DonkeyUser
         fields = ('id', 'username')
+
+
+class ArticleReplySerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.nickname')
+
+    class Meta:
+        model = ArticleReply
+        fields = ('id', 'user', 'content', 'depth', 'created_at', 'modified_at')
