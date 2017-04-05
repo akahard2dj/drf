@@ -4,6 +4,7 @@ from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
 from django.utils import timezone
 
 from core.utils import random_digit_and_number
+from core.utils import UserCrypto
 from core.models.category import (University, Department)
 
 
@@ -33,11 +34,24 @@ class DonkeyUserManager(BaseUserManager):
 
 
 class DonkeyUser(AbstractBaseUser):
-    email = models.EmailField(
-        verbose_name='email address',
-        max_length=255,
-        unique=True,
-    )
+    #email = models.EmailField(
+    #    verbose_name='email address',
+    #    max_length=255,
+    #    unique=True,
+    #)
+    email = models.CharField(unique=True, null=True, max_length=256, verbose_name='encrypted email address')
+    USERNAME_FIELD = 'email'
+
+    @property
+    def username(self):
+        crypto = UserCrypto()
+        return crypto.decode(self.email)
+
+    @username.setter
+    def set_username(self, value):
+        crypto = UserCrypto()
+        self.email = crypto.encode(value)
+
     nickname = models.CharField(null=False, max_length=100, default=random_digit_and_number)
     university = models.ForeignKey(University)
     #department = models.OneToOneField(Department)
@@ -49,8 +63,6 @@ class DonkeyUser(AbstractBaseUser):
     is_confirm = models.BooleanField(default=False)
 
     objects = DonkeyUserManager()
-
-    USERNAME_FIELD = 'email'
 
     def get_full_name(self):
         # The user is identified by their email address
@@ -86,21 +98,12 @@ class DonkeyUser(AbstractBaseUser):
     def save(self, *args, **kwargs):
         key_email = kwargs.pop('key_email')
         email_domain = key_email.split('@')[-1]
+        crypto = UserCrypto()
         try:
             univ_from_db = University.objects.get(domain=email_domain)
         except University.DoesNotExist:
             raise validators.ValidationError('Not in university')
         else:
-            self.email = key_email
+            self.email = crypto.encode(key_email)
             self.university = univ_from_db
             super(DonkeyUser, self).save(*args, **kwargs)
-        '''
-        user.nickname = random_digit_and_number()
-            user_domain = key_email.split('@')[-1]
-            univ_from_db = University.objects.get(domain=user_domain)
-
-            user.university = univ_from_db
-
-            #user.department = Department.objects.get(pk=1)
-            user.email = key_email
-        '''

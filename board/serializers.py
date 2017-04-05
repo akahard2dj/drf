@@ -31,3 +31,9 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
         fields = ('id', 'user', 'board', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')
+
+
+class DonkeyUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DonkeyUser
+        fields = ('id', 'username')

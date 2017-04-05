@@ -1,6 +1,5 @@
 from rest_framework import permissions
 from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import (api_view, permission_classes)
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -15,6 +14,7 @@ from board.models import Article
 from board.serializers import ArticleSerializer
 from board.serializers import ArticleAddSerializer
 from board.serializers import ArticleDetailSerializer
+from board.serializers import DonkeyUserSerializer
 
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
@@ -187,14 +187,6 @@ class ArticleList(APIView):
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
-
-class ArticleAdd(APIView):
-    permission_classes = (permissions.IsAuthenticated, )
-
-    def check_bulletinboard(self, request):
-        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
-
     def post(self, request, format=None):
         request_data = request.data
         is_title = 'title' in request_data
@@ -304,3 +296,21 @@ class ArticleDetail(APIView):
                 return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+class UserDetail(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    @method_decorator(never_cache)
+    def get(self, request, pk, format=None):
+        print(request.user.id, pk)
+        if int(request.user.id) == int(pk):
+            try:
+                donkey_user = DonkeyUser.objects.get(pk=pk)
+            except DonkeyUser.DoesNotExist:
+                return Response({'msg': 'invalid user id'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                serializer = DonkeyUserSerializer(donkey_user)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response({'msg': 'invalid access'}, status=status.HTTP_401_UNAUTHORIZED)

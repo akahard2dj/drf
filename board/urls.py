@@ -17,8 +17,10 @@ urlpatterns = [
     # articles : listing articles
     # articles-add : adding an article
     url(r'^articles/$', views.ArticleList.as_view(), name='articles'),
-    url(r'^article/add/$', views.ArticleAdd.as_view(), name='articles-add'),
-    url(r'^articles/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail')
+    url(r'^article-detail/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
+
+    # donkeyuser
+    url(r'^donkeyuser/(?P<pk>[0-9]+)/$', views.UserDetail.as_view(), name='user-detail'),
 
 ]
 
