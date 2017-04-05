@@ -15,6 +15,7 @@ from board.models import ArticleReply
 from board.serializers import ArticleSerializer
 from board.serializers import ArticleAddSerializer
 from board.serializers import ArticleDetailSerializer
+from board.serializers import ArticleReplySerializer
 from board.serializers import DonkeyUserSerializer
 
 from core.models.donkey_user import DonkeyUser
@@ -318,12 +319,10 @@ class ArticleReplyList(APIView):
 
         is_access = self.check_bulletinboard(request)
         if is_access:
-            root_replies = ArticleReply.objects.filter(article_id=article_pk).filter(depth=1).all()
-            tmp = []
-            for root_reply in root_replies:
-                tmp.append(root_reply.dump_bulk())
-            print(tmp)
-            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+            replies = ArticleReply.objects.filter(article_id=article_pk).all()
+
+            serializer = ArticleReplySerializer(replies, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
