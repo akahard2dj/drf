@@ -1,17 +1,18 @@
 from configparser import ConfigParser
 import os
 
-# FIXME: modify to read file only once
+DJANGO_PROPERTY_MODE = 'production'
+if os.environ.get('DJANGO_PROPERTY_MODE'):
+    DJANGO_PROPERTY_MODE = os.environ.get('DJANGO_PROPERTY_MODE')
 
-PROPERTY_MODE = 'production'
-FILE_PATH = os.path.dirname(os.path.abspath(__file__)) + '/properties/properties-' + PROPERTY_MODE + '.ini'
-config = ConfigParser()
-config.read(FILE_PATH)
+DJANGO_PROPERTY_FILE_PATH = os.path.dirname(os.path.abspath(__file__)) + '/properties/properties-' + DJANGO_PROPERTY_MODE + '.ini'
+module_config = ConfigParser()
+module_config.read(DJANGO_PROPERTY_FILE_PATH)
 
 
 def get_db(name):
-    return config.get('DATABASE', name)
+    return module_config.get('DATABASE', name)
 
 
 def get(name):
-    return config.get('DEFAULT', name)
+    return module_config.get('DEFAULT', name)
