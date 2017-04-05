@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
@@ -309,4 +310,4 @@ class ArticleDetail(APIView):
 @never_cache
 @api_view(['GET'])
 def hello(request):
-    return Response({'msg': 'hello'}, status=status.HTTP_200_OK)
+    return HttpResponse('hello')

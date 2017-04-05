@@ -81,8 +81,9 @@ INSTALLED_APPS = [
     'djcelery_email',
     'rest_framework',
     'rest_framework.authtoken',
-    'mapi.apps.BoardConfig',
+    'mapi.apps.MApiConfig',
     'core.apps.CoreConfig',
+    'batch.apps.BatchConfig',
 ]
 
 MIDDLEWARE = [
