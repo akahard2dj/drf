@@ -22,8 +22,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-# FIXME: For easy development.
-#ALLOWED_HOSTS = ['211.201.190.29']
+ALLOWED_HOSTS = [config.get('ALLOWED_IP_ADDRESSES')]
 
 # E-Mail
 EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
