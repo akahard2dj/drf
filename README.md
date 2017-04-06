@@ -1,25 +1,22 @@
-# drf
+# How to setup
 
-source venv/bin/activate
-pip3 install -r requirements.txt
+1. Setup and run virtualenv.
+- python3 -m venv venv
+- source venv/bin/activate
 
-Libraries
- - celery==3.1.25 
- - Django==1.10.5 
- 
- - django-appconf==1.0.2 
- 
- - django-celery==3.2.1 
- 
- - django-celery-email==1.1.5
- 
- - django-redis==4.7.0
- 
- - django-redis-cache==1.7.1
- 
- - djangorestframework==3.6.2
- 
- - psycopg2==2.7.1
- 
- - uWSGI==2.0.14
+2. Install mandatory packages
+- (venv) pip install -r requirements.txt
+
+3. Configure environment
+- Added new properties file like /drf/properties/properties-develop-my.ini
+- Configure Redis and PostgreSQL properly and fill out.
+- Added OS variable for 'DJANGO_PROPERTY_MODE' as what you just created. (ex. 'develop-my')
+
+3. Build models and migrate
+- (venv) python manage.py makemigrations
+- (venv) python manage.py migrate
+
+4. That's all. just run.
+- (venv) python manage.py runserver
+
  
