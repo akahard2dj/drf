@@ -95,7 +95,7 @@ class DonkeyUser(AbstractBaseUser):
         self.last_login = timezone.now()
         self.save()
 
-    def save(self, *args, **kwargs):
+    def user_save(self, *args, **kwargs):
         key_email = kwargs.pop('key_email')
         email_domain = key_email.split('@')[-1]
         crypto = UserCrypto()
@@ -106,4 +106,5 @@ class DonkeyUser(AbstractBaseUser):
         else:
             self.email = crypto.encode(key_email)
             self.university = univ_from_db
-            super(DonkeyUser, self).save(*args, **kwargs)
+            self.save()
+            #super(DonkeyUser, self).save(*args, **kwargs)

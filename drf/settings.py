@@ -44,10 +44,9 @@ CELERY_BROKER_URL = config.get('CELERY_BROKER_URL')
 # Redis 
 CACHES = {
         "default": {
-            # FIXME: For easy development.
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+            "BACKEND": "django_redis.cache.RedisCache",
             #"BACKEND": "redis_cache.RedisCache",
-            #"LOCATION": os.environ.get('REDIS_LOCATION'),
+            #"LOCATION": 'redis://127.0.0.1:6379/1',
             #"OPTIONS": {
             #    "CLIENT_CLASS": "django_redis.client.DefaultClient"
             #},
@@ -81,8 +80,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'treebeard',
-    'board.apps.BoardConfig',
+    'mapi.apps.MApiConfig',
     'core.apps.CoreConfig',
+    'batch.apps.BatchConfig',
 ]
 
 MIDDLEWARE = [

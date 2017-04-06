@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.decorators import (api_view, permission_classes)
@@ -10,12 +11,12 @@ from django.utils.decorators import method_decorator
 from django.core.cache import cache
 from django.core import validators
 
-from board.models import Article
-from board.models import ArticleReply
-from board.serializers import ArticleSerializer
-from board.serializers import ArticleAddSerializer
-from board.serializers import ArticleDetailSerializer
-from board.serializers import DonkeyUserSerializer
+from mapi.models import Article
+from mapi.models import ArticleReply
+from mapi.serializers import ArticleSerializer
+from mapi.serializers import ArticleAddSerializer
+from mapi.serializers import ArticleDetailSerializer
+from mapi.serializers import DonkeyUserSerializer
 
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
@@ -143,7 +144,7 @@ def registration(request):
         if auth_code == value_from_cache['code']:
             user = DonkeyUser()
             try:
-                user.save(key_email=key_email)
+                user.user_save(key_email=key_email)
             except validators.ValidationError as e:
                 return Response({'msg': 'Not service {}'.format(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -187,6 +188,14 @@ class ArticleList(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+class ArticleAdd(APIView):
+    permission_classes = (permissions.IsAuthenticated, )
+
+    def check_bulletinboard(self, request):
+        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
 
     def post(self, request, format=None):
         request_data = request.data
@@ -397,3 +406,9 @@ class UserDetail(APIView):
                 return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response({'msg': 'invalid access'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+@never_cache
+@api_view(['GET'])
+def hello(request):
+    return HttpResponse('hello')

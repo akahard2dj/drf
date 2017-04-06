@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
-from board import views
+from mapi import views
 
 urlpatterns = [
     # pre-check : token check
@@ -25,6 +25,11 @@ urlpatterns = [
 
     # donkeyuser
     url(r'^donkeyuser/(?P<pk>[0-9]+)/$', views.UserDetail.as_view(), name='user-detail'),
+    url(r'^article/add/$', views.ArticleAdd.as_view(), name='articles-add'),
+    url(r'^articles/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
+
+    # check service alive
+    url(r'^hello/$', views.hello, name='hello'),
 
 ]
 
