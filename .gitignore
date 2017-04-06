@@ -9,6 +9,7 @@ venv/
 # db migrations folder
 core/migrations/
 mapi/migrations/
+batch/migrations/
 
 # C extensions
 *.so
