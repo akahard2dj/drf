@@ -103,8 +103,8 @@ def gen_auth_key(request):
                 print(auth_code)
                 cache_data = {'code': auth_code, 'status': 'SENT'}
                 cache.set(key_email, cache_data, timeout=300)
-                # m = Mailer()
-                # m.send_messages('Authorization Code', temp_value, [key])
+                m = Mailer()
+                m.send_messages('Authorization Code', temp_value, [key])
 
                 return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
     else:
