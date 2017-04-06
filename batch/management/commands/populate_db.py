@@ -66,7 +66,7 @@ class Command(BaseCommand):
 
     def _create_user(self):
         a = DonkeyUser()
-        a.save(key_email='test1@auniv.ac.kr')
+        a.user_save(key_email='test1@auniv.ac.kr')
         c = UserBoardConnector()
         c.donkey_user = a
         c.save()
@@ -75,7 +75,7 @@ class Command(BaseCommand):
             c.set_bulletinboard_id(j.id)
 
         a = DonkeyUser()
-        a.save(key_email='test1@buniv.ac.kr')
+        a.user_save(key_email='test1@buniv.ac.kr')
         c = UserBoardConnector()
         c.donkey_user = a
         c.save()
@@ -84,7 +84,7 @@ class Command(BaseCommand):
             c.set_bulletinboard_id(j.id)
 
         a = DonkeyUser()
-        a.save(key_email='test1@cuniv.ac.kr')
+        a.user_save(key_email='test1@cuniv.ac.kr')
         c = UserBoardConnector()
         c.donkey_user = a
         c.save()
@@ -93,7 +93,7 @@ class Command(BaseCommand):
             c.set_bulletinboard_id(j.id)
 
         a = DonkeyUser()
-        a.save(key_email='test1@duniv.ac.kr')
+        a.user_save(key_email='test1@duniv.ac.kr')
         c = UserBoardConnector()
         c.donkey_user = a
         c.save()
@@ -102,7 +102,7 @@ class Command(BaseCommand):
             c.set_bulletinboard_id(j.id)
 
         a = DonkeyUser()
-        a.save(key_email='test2@auniv.ac.kr')
+        a.user_save(key_email='test2@auniv.ac.kr')
         c = UserBoardConnector()
         c.donkey_user = a
         c.save()
