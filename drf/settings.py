@@ -41,17 +41,6 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # Celery-RabbitMQ
 CELERY_BROKER_URL = config.get('CELERY_BROKER_URL')
 
-# Redis 
-CACHES = {
-        "default": {
-            "BACKEND": "django_redis.cache.RedisCache",
-            #"BACKEND": "redis_cache.RedisCache",
-            #"LOCATION": 'redis://127.0.0.1:6379/1',
-            #"OPTIONS": {
-            #    "CLIENT_CLASS": "django_redis.client.DefaultClient"
-            #},
-        }
-}
 
 # Application definition
 

@@ -189,6 +189,32 @@ class ArticleList(APIView):
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
+    def post(self, request, format=None):
+        request_data = request.data
+        is_title = 'title' in request_data
+        is_content = 'content' in request_data
+        is_board_id = 'board_id' in request_data
+
+        if is_title and is_content and is_board_id:
+            items = request_data
+        else:
+            return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_access = self.check_bulletinboard(request)
+
+        if is_access:
+            items.update({'user': request.user.id})
+            items.update({'board': request_data['board_id']})
+
+            serializer = ArticleAddSerializer(data=items)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
 
 class ArticleAdd(APIView):
     permission_classes = (permissions.IsAuthenticated, )
