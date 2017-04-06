@@ -16,6 +16,7 @@ from mapi.models import ArticleReply
 from mapi.serializers import ArticleSerializer
 from mapi.serializers import ArticleAddSerializer
 from mapi.serializers import ArticleDetailSerializer
+from mapi.serializers import ArticleReplySerializer
 from mapi.serializers import DonkeyUserSerializer
 
 from core.models.donkey_user import DonkeyUser
@@ -183,7 +184,8 @@ class ArticleList(APIView):
         is_access = self.check_bulletinboard(request)
 
         if is_access:
-            articles = Article.objects.filter(board_id=board_id).exclude(status=2)
+            #articles = Article.objects.filter(board_id=board_id).exclude(status=2)
+            articles = Article.objects.filter(board_id=board_id).all()
             serializer = ArticleSerializer(articles, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
@@ -276,13 +278,17 @@ class ArticleDetail(APIView):
         is_access = self.check_bulletinboard(request)
         if is_access:
             article = self.get_object(pk)
-            if int(board_id) != article.board_id:
-                return Response({'msg': 'abnormat request'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            # status checking
+            if article.status == 0:
+                if int(board_id) != article.board_id:
+                    return Response({'msg': 'abnormat request'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
-            if request.user.id != article.user_id:
-                article.increase_view_count()
-            serializer = ArticleDetailSerializer(article)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+                if request.user.id != article.user_id:
+                    article.increase_view_count()
+                serializer = ArticleDetailSerializer(article)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({'msg': 'invalid access'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
@@ -346,19 +352,15 @@ class ArticleReplyList(APIView):
         request_data = request.data
         is_board_id = 'board_id' in request_data
 
-        if is_board_id:
-            board_id = request.data['board_id']
-        else:
+        if not is_board_id:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
         is_access = self.check_bulletinboard(request)
         if is_access:
-            root_replies = ArticleReply.objects.filter(article_id=article_pk).filter(depth=1).all()
-            tmp = []
-            for root_reply in root_replies:
-                tmp.append(root_reply.dump_bulk())
-            print(tmp)
-            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+            replies = ArticleReply.objects.filter(article_id=article_pk).all()
+
+            serializer = ArticleReplySerializer(replies, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
@@ -368,7 +370,6 @@ class ArticleReplyList(APIView):
         is_content = 'content' in request_data
 
         if is_board_id and is_content:
-            board_id = request.data['board_id']
             content = request.data['content']
         else:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
@@ -386,6 +387,7 @@ class ArticleReplyList(APIView):
 
 
 class ArticleReplyDetail(APIView):
+    #TODO : need to be implemented of reply depth(initial condition : depth =3 --> reply(1) - reply(11) - reply(111)
     permission_classes = (permissions.IsAuthenticated, )
 
     def check_bulletinboard(self, request):
@@ -415,23 +417,81 @@ class ArticleReplyDetail(APIView):
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
+    def put(self, request, article_pk, reply_pk, format=None):
+        request_data = request.data
+        is_board_id = 'board_id' in request_data
+        is_content = 'content' in request_data
+
+        if is_board_id and is_content:
+            content = request.data['content']
+        else:
+            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_access = self.check_bulletinboard(request)
+        if is_access:
+            article_reply = ArticleReply.objects.get(pk=reply_pk)
+            if request.user == article_reply.user:
+                article_reply.content = content
+                article_reply.save()
+            else:
+                return Response({'msg': 'Unauthorized request'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+    def delete(self, request, article_pk, reply_pk, format=None):
+        request_data = request.data
+        is_board_id = 'board_id' in request_data
+
+        if not is_board_id:
+            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_access = self.check_bulletinboard(request)
+        if is_access:
+            article_reply = ArticleReply.objects.get(pk=reply_pk)
+            if request.user == article_reply.user:
+                #TODO status naming
+                article_reply.status = 2
+                article_reply.save()
+            else:
+                return Response({'msg': 'Unauthorized request'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
 
 class UserDetail(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     @method_decorator(never_cache)
-    def get(self, request, pk, format=None):
-        print(request.user.id, pk)
-        if int(request.user.id) == int(pk):
-            try:
-                donkey_user = DonkeyUser.objects.get(pk=pk)
-            except DonkeyUser.DoesNotExist:
-                return Response({'msg': 'invalid user id'}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                serializer = DonkeyUserSerializer(donkey_user)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+    def get(self, request, format=None):
+        user_id = int(request.user.id)
+        try:
+            donkey_user = DonkeyUser.objects.get(pk=user_id)
+        except DonkeyUser.DoesNotExist:
+            return Response({'msg': 'invalid user id'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'msg': 'invalid access'}, status=status.HTTP_401_UNAUTHORIZED)
+            serializer = DonkeyUserSerializer(donkey_user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, format=None):
+        request_data = request.data
+        is_nickname = 'nickname' in request_data
+
+        if not is_nickname:
+            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_id = int(request.user.id)
+        try:
+            donkey_user = DonkeyUser.objects.get(pk=user_id)
+        except DonkeyUser.DoesNotExist:
+            return Response({'msg': 'invalid user id'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            donkey_user.nickname = request_data['nickname']
+            donkey_user.save()
+            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
 
 
 @never_cache

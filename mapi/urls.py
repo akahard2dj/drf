@@ -24,7 +24,7 @@ urlpatterns = [
     url(r'^article-detail/(?P<article_pk>[0-9]+)/article_replies/(?P<reply_pk>[0-9]+)/$', views.ArticleReplyDetail.as_view(), name='article-reply-detail'),
 
     # donkeyuser
-    url(r'^donkeyuser/(?P<pk>[0-9]+)/$', views.UserDetail.as_view(), name='user-detail'),
+    url(r'^donkeyuser/$', views.UserDetail.as_view(), name='user-detail'),
 
     # check service alive
     url(r'^hello/$', views.hello, name='hello'),
