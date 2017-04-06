@@ -16,3 +16,8 @@ def get_db(name):
 
 def get(name):
     return module_config.get('DEFAULT', name)
+
+
+def need_cache():
+    return module_config.get('DEFAULT', 'NEED_CACHE') == 'True'
+
