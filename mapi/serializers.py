@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from rest_framework import serializers
 
 from core.models.donkey_user import DonkeyUser
@@ -11,18 +13,24 @@ class ArticleSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.nickname')
     board = serializers.ReadOnlyField(source='board.title')
     title = serializers.SerializerMethodField('custom_board_title')
+    created_at = serializers.SerializerMethodField('localtime_created_at')
 
     class Meta:
         model = Article
         fields = ('id', 'user', 'board', 'title', 'views', 'likes', 'created_at')
 
-    def custom_board_title(self, obj):
+    @staticmethod
+    def custom_board_title(obj):
         if obj.status == 0:
-            return (obj.title)
+            return obj.title
         if obj.status == 1:
-            return ('신고된 글 입니다')
+            return '신고된 글 입니다'
         if obj.status == 2:
-            return ('삭제된 글 입니다')
+            return '삭제된 글 입니다'
+
+    @staticmethod
+    def localtime_created_at(obj):
+        return timezone.localtime(obj.created_at)
 
 
 class ArticleAddSerializer(serializers.ModelSerializer):
@@ -46,23 +54,32 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
 class ArticleReplySerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.nickname')
     content = serializers.SerializerMethodField('custom_content_name')
+    created_at = serializers.SerializerMethodField('localtime_created_at')
+    modified_at = serializers.SerializerMethodField('localtime_modified_at')
 
     class Meta:
         model = ArticleReply
         fields = ('id', 'user', 'content', 'depth', 'status', 'created_at', 'modified_at')
 
-    def custom_content_name(self, obj):
+    @staticmethod
+    def custom_content_name(obj):
         if obj.status == 0:
-            return (obj.content)
+            return obj.content
         if obj.status == 1:
-            return ('신고된 댓글 입니다')
+            return '신고된 댓글 입니다'
         if obj.status == 2:
-            return ('삭제된 댓글 입니다')
+            return '삭제된 댓글 입니다'
+
+    @staticmethod
+    def localtime_created_at(obj):
+        return timezone.localtime(obj.created_at)
+
+    @staticmethod
+    def localtime_modified_at(obj):
+        return timezone.localtime(obj.modified_at)
+
 
 class DonkeyUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = DonkeyUser
         fields = ('id', 'username', 'nickname', 'last_login')
-
-    def get_information(self, obj):
-        return (obj.nickname)

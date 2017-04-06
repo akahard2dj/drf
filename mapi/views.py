@@ -29,6 +29,26 @@ from core.utils import random_digit_and_number
 from celery import shared_task
 
 
+def is_access_to_board(func):
+    class Wrapper(object):
+        def __init__(self):
+            self.user_id = None
+            self.board_id = None
+
+        def __call__(self, *args, **kwargs):
+            func(*args)
+
+            user_board_connector = UserBoardConnector.objects.get(donkey_user_id=self.user_id)
+            return user_board_connector.check_bulletinboard_id(self.board_id)
+    return Wrapper()
+
+
+@is_access_to_board
+def check_board(user_id, board_id):
+    check_board.user_id = user_id
+    check_board.board_id = board_id
+
+
 @shared_task()
 def add(x, y):
     return x+y
@@ -167,24 +187,17 @@ def registration(request):
 class ArticleList(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
-    def check_bulletinboard(self, request):
-        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
-
     @method_decorator(never_cache)
     def get(self, request, format=None):
         request_data = request.data
         is_board_id = 'board_id' in request_data
-
         if is_board_id:
             board_id = request.data['board_id']
         else:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-
-        if is_access:
-            #articles = Article.objects.filter(board_id=board_id).exclude(status=2)
+        if check_board(int(request.user.id), int(request.data['board_id'])):
+            # articles = Article.objects.filter(board_id=board_id).exclude(status=2)
             articles = Article.objects.filter(board_id=board_id).all()
             serializer = ArticleSerializer(articles, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -202,9 +215,7 @@ class ArticleList(APIView):
         else:
             return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             items.update({'user': request.user.id})
             items.update({'board': request_data['board_id']})
 
@@ -221,10 +232,6 @@ class ArticleList(APIView):
 class ArticleAdd(APIView):
     permission_classes = (permissions.IsAuthenticated, )
 
-    def check_bulletinboard(self, request):
-        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
-
     def post(self, request, format=None):
         request_data = request.data
         is_title = 'title' in request_data
@@ -236,9 +243,7 @@ class ArticleAdd(APIView):
         else:
             return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             items.update({'user': request.user.id})
             items.update({'board': request_data['board_id']})
 
@@ -254,10 +259,6 @@ class ArticleAdd(APIView):
 
 class ArticleDetail(APIView):
     permission_classes = (permissions.IsAuthenticated, )
-
-    def check_bulletinboard(self, request):
-        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
 
     def get_object(self, pk):
         try:
@@ -275,8 +276,7 @@ class ArticleDetail(APIView):
         else:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             article = self.get_object(pk)
             # status checking
             if article.status == 0:
@@ -293,8 +293,7 @@ class ArticleDetail(APIView):
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     def delete(self, request, pk):
-        is_access = self.check_bulletinboard(request)
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             article = self.get_object(pk)
             if article.user == request.user:
                 if article.status == 2:
@@ -320,8 +319,7 @@ class ArticleDetail(APIView):
         else:
             return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             article = self.get_object(pk)
             if article.user == request.user:
                 items.update({'user': request.user.id})
@@ -343,10 +341,6 @@ class ArticleDetail(APIView):
 class ArticleReplyList(APIView):
     permission_classes = (permissions.IsAuthenticated, )
 
-    def check_bulletinboard(self, request):
-        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
-
     @method_decorator(never_cache)
     def get(self, request, article_pk, format=None):
         request_data = request.data
@@ -355,8 +349,7 @@ class ArticleReplyList(APIView):
         if not is_board_id:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             replies = ArticleReply.objects.filter(article_id=article_pk).all()
 
             serializer = ArticleReplySerializer(replies, many=True)
@@ -374,8 +367,7 @@ class ArticleReplyList(APIView):
         else:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             reply = ArticleReply.add_root(
                 content=content,
                 article=Article.objects.get(pk=article_pk),
@@ -390,10 +382,6 @@ class ArticleReplyDetail(APIView):
     #TODO : need to be implemented of reply depth(initial condition : depth =3 --> reply(1) - reply(11) - reply(111)
     permission_classes = (permissions.IsAuthenticated, )
 
-    def check_bulletinboard(self, request):
-        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-        return user_board_connector.check_bulletinboard_id(request.data['board_id'])
-
     def post(self, request, article_pk, reply_pk, format=None):
         request_data = request.data
         is_board_id = 'board_id' in request_data
@@ -405,8 +393,7 @@ class ArticleReplyDetail(APIView):
         else:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             get_reply = lambda node_id: ArticleReply.objects.filter(article_id=article_pk).get(pk=node_id)
             sub_reply = get_reply(reply_pk).add_child(
                 content=content,
@@ -427,8 +414,7 @@ class ArticleReplyDetail(APIView):
         else:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             article_reply = ArticleReply.objects.get(pk=reply_pk)
             if request.user == article_reply.user:
                 article_reply.content = content
@@ -447,8 +433,7 @@ class ArticleReplyDetail(APIView):
         if not is_board_id:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_access = self.check_bulletinboard(request)
-        if is_access:
+        if check_board(request.user.id, request.data['board_id']):
             article_reply = ArticleReply.objects.get(pk=reply_pk)
             if request.user == article_reply.user:
                 #TODO status naming
@@ -493,8 +478,8 @@ class UserDetail(APIView):
             donkey_user.save()
             return Response({'msg': 'success'}, status=status.HTTP_200_OK)
 
-
 @never_cache
 @api_view(['GET'])
 def hello(request):
-    return HttpResponse('hello')
+    return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+

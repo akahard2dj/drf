@@ -16,10 +16,6 @@ from drf import config
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 
@@ -64,11 +60,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Celery library
     'djcelery',
     'djcelery_email',
+    # Restframework library
     'rest_framework',
     'rest_framework.authtoken',
+    # Tree-Comment library
     'treebeard',
+    # apps
     'mapi.apps.MApiConfig',
     'core.apps.CoreConfig',
     'batch.apps.BatchConfig',
@@ -88,22 +88,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'drf.urls'
 
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')]
-        ,
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
 
 WSGI_APPLICATION = 'drf.wsgi.application'
 
@@ -144,13 +128,21 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
 USE_L10N = True
 
 USE_TZ = True
+
+'''
+from django.utils import timezone
+timezone.now()
+datetime.datetime(2017, 4, 6, 2, 18, 4, 570044, tzinfo=<UTC>)
+timezone.localtime(timezone.now())
+datetime.datetime(2017, 4, 6, 11, 19, 19, 672131, tzinfo=<DstTzInfo 'Asia/Seoul' KST+9:00:00 STD>)
+'''
 
 
 # Static files (CSS, JavaScript, Images)
