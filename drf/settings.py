@@ -41,7 +41,7 @@ if config.need_cache():
     CACHES = {
         "default": {
             "BACKEND": "redis_cache.RedisCache",
-            "LOCATION": os.environ.get('REDIS_LOCATION'),
+            "LOCATION": config.get('REDIS_LOCATION'),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient"
             },
