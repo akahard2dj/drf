@@ -105,5 +105,5 @@ class Command(BaseCommand):
         self._create_default_bulletinboard()
 
     def handle(self, *args, **options):
-        #self._service_model()
-        self._create_default_bulletinboard()
+        self._service_model()
+        #self._create_default_bulletinboard()
