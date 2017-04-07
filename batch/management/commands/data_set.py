@@ -64,6 +64,8 @@ class Command(BaseCommand):
                 address = tmp[14]
             elif len(tmp) == 20:
                 address = tmp[15]
+            elif len(tmp) == 21:
+                address = tmp[16]
             else:
                 raise ValueError
 
