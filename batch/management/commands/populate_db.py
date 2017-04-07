@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from core.models.category import (University, Department)
+from core.models.category import *
 from core.models.donkey_user import DonkeyUser
 from core.models.connector import UserBoardConnector
 from core.models.bulletin_board import BulletinBoard

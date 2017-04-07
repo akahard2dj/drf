@@ -100,11 +100,11 @@ def gen_auth_key(request):
                                 status=status.HTTP_429_TOO_MANY_REQUESTS)
             else:
                 auth_code = random_digit_and_number(length_of_value=6)
-                print(auth_code)
-                cache_data = {'code': auth_code, 'status': 'SENT'}
+                # TODO : when deply to real service, MUST BE CHANGED "test1234" to auth_code
+                cache_data = {'code': "test1234", 'status': 'SENT'}
                 cache.set(key_email, cache_data, timeout=300)
                 m = Mailer()
-                m.send_messages('Authorization Code', temp_value, [key])
+                m.send_messages('Authorization Code', auth_code, [key_email])
 
                 return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
     else:
@@ -173,6 +173,9 @@ def registration(request):
             joined_bulletins = BulletinBoard.objects.filter(university=user.university)
             _ = UserBoardConnector.objects.create(donkey_user=user)
             connector_btw_user_board = UserBoardConnector.objects.get(donkey_user=user)
+
+            # default board
+            connector_btw_user_board.set_bulletinboard_id(1)
 
             for bulletin in joined_bulletins:
                 connector_btw_user_board.set_bulletinboard_id(bulletin.id)
