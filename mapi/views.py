@@ -100,30 +100,53 @@ def email_check(request):
         try:
             validators.validate_email(email)
         except validators.ValidationError:
-            res = {'is_valid': False,
-                   'msg': 'Invalid Email Address',
-                   'code': '200'}
+            res = {
+                'code': '200',
+                'msg': 'failed',
+                'detail': 'Invalid email address',
+                'data': {
+                    'is_valid': False,
+                    'msg': 'Invalid email address',
+                    'name': ''
+                }
+            }
             return Response(res, status=status.HTTP_200_OK)
         else:
             domain = email.split('@')[-1]
             try:
                 university = University.objects.get(domain=domain)
             except University.DoesNotExist:
-                res = {'is_valid': False,
-                       'msg': 'No service University',
-                       'code': '200'}
+                res = {
+                    'code': '200',
+                    'msg': 'failed',
+                    'detail': 'No service University',
+                    'data': {
+                        'is_valid': False,
+                        'msg': 'No service University',
+                        'name': ''
+                    }
+                }
+
                 return Response(res, status=status.HTTP_200_OK)
             else:
-                res = {'is_valid': True,
-                       'msg': 'Service University',
-                       'code': '200',
-                       'name': university.name}
+                res = {
+                    'code': '200',
+                    'msg': 'success',
+                    'detail': 'Service University',
+                    'data': {
+                        'is_valid': True,
+                        'msg': 'Service University',
+                        'name': university.name
+                    }
+                }
                 return Response(res, status=status.HTTP_200_OK)
 
     else:
-        res = {'is_valid': False,
-                'msg': 'No email field',
-                'code': '400'}
+        res = {
+            'code': '400',
+            'msg': 'failed',
+            'detail': 'No email field'
+        }
         return Response(res, status=status.HTTP_200_OK)
 
 
