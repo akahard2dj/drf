@@ -185,7 +185,7 @@ def gen_auth_key(request):
             else:
                 auth_code = random_digit_and_number(length_of_value=6)
                 # TODO : when deply to real service, MUST BE CHANGED "test1234" to auth_code
-                cache_data = {'code': "test1234", 'status': 'SENT'}
+                cache_data = {'code': "1234", 'status': 'SENT'}
                 cache.set(key_email, cache_data, timeout=300)
                 #m = Mailer()
                 #m.send_messages('Authorization Code', auth_code, [key_email])
@@ -230,7 +230,7 @@ def confirm_auth_key(request):
             'detail': 'There is no credential information in cache',
             'data': {
                 'confirm': False,
-                'msg': '잘못된 접근'
+                'msg': '',
             }
         }
         return Response(res, status=status.HTTP_200_OK)
