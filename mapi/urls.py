@@ -6,6 +6,9 @@ urlpatterns = [
     # pre-check : token check
     url(r'^pre-check$', views.pre_check, name='pre-check'),
 
+    # email-check : email validation and getting a name of a university
+    url(r'^email-check$', views.email_check, name='email-check'),
+
     # gen-auth-key : temporally generating key in cache
     # confirm-auth-key : authenticating email code in cache
     url(r'^gen-auth-key/$', views.gen_auth_key, name='gen-auth-key'),

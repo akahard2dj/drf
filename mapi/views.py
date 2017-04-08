@@ -22,6 +22,7 @@ from mapi.serializers import DonkeyUserSerializer
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
 from core.models.connector import UserBoardConnector
+from core.models.category import *
 
 from core.celery_email import Mailer
 from core.utils import random_digit_and_number
@@ -64,7 +65,6 @@ def celery_test(request):
 @never_cache
 @api_view(['GET'])
 def pre_check(request):
-    request_data = request.data
     is_token_key = request.method == 'GET' and 'token' in request.GET
     if is_token_key:
         token = request.GET['token']
@@ -87,6 +87,40 @@ def pre_check(request):
         res = {'msg': 'failed',
                 'code': '200',
                 'data': {'result': False}}
+        return Response(res, status=status.HTTP_200_OK)
+
+
+@never_cache
+@api_view(['GET'])
+def email_check(request):
+    is_email = request.method == 'GET' and 'email' in request.GET
+    if is_email:
+        email = request.GET['email']
+
+        try:
+            validators.validate_email(email)
+        except validators.ValidationError:
+            res = {'is_valid': False,
+                   'msg': 'Invalid Email Address'}
+            return Response(res, status=status.HTTP_200_OK)
+        else:
+            domain = email.split('@')[-1]
+            try:
+                university = University.objects.get(domain=domain)
+            except University.DoesNotExist:
+                res = {'is_valid': False,
+                       'msg': 'No service University'}
+                return Response(res, status=status.HTTP_200_OK)
+            else:
+                res = {'is_valid': True,
+                       'msg': 'Service University',
+                       'name': university.name}
+                return Response(res, status=status.HTTP_200_OK)
+
+    else:
+        res = {'is_valid': False,
+                'msg': 'No email field',
+                'code': '200'}
         return Response(res, status=status.HTTP_200_OK)
 
 
