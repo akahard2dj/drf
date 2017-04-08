@@ -64,7 +64,10 @@ class Command(BaseCommand):
                 address = tmp[14]
             elif len(tmp) == 20:
                 address = tmp[15]
+            elif len(tmp) == 21:
+                address = tmp[16]
             else:
+                print(len(tmp))
                 raise ValueError
 
             u = University()
@@ -103,5 +106,5 @@ class Command(BaseCommand):
         self._create_default_bulletinboard()
 
     def handle(self, *args, **options):
-        #self._service_model()
-        self._create_default_bulletinboard()
+        self._service_model()
+        #self._create_default_bulletinboard()
