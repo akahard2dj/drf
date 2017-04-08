@@ -245,7 +245,7 @@ def confirm_auth_key(request):
                     'detail': 'existed_user',
                     'data': {
                         'confirm': True,
-                        'exist_user':
+                        'exist_user': True,
                     }
                 }
                 return Response(res, status=status.HTTP_200_OK)
