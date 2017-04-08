@@ -229,8 +229,8 @@ def confirm_auth_key(request):
             'code': '200',
             'detail': 'There is no credential information in cache',
             'data': {
-                'confirm': False,
-                'msg': '',
+                'is_confirm': False,
+                'msg': '재인증이 필요합니다',
             }
         }
         return Response(res, status=status.HTTP_200_OK)
@@ -244,8 +244,9 @@ def confirm_auth_key(request):
                     'code': '200',
                     'detail': 'existed_user',
                     'data': {
-                        'confirm': True,
-                        'exist_user': True,
+                        'is_confirm': True,
+                        'is_exist': True,
+                        'msg': '기존의 유저입니다',
                     }
                 }
                 return Response(res, status=status.HTTP_200_OK)
@@ -253,15 +254,28 @@ def confirm_auth_key(request):
             else:
                 value_from_cache['status'] = 'CONFIRM'
                 cache.set(key_email, value_from_cache, timeout=600)
-                res = {'msg': 'success',
-                       'code': '200',
-                       'detail': 'new_user'}
+                res = {
+                    'msg': 'success',
+                    'code': '200',
+                    'detail': 'new_user',
+                    'data': {
+                        'is_confirm': True,
+                        'is_exist': False,
+                        'msg': '새로운 유저입니다'
+                    }
+                }
                 return Response(res, status=status.HTTP_200_OK)
 
         else:
-            res = {'msg': 'success',
-                   'code': '200',
-                   'detail': 'Invalid authorization code'}
+            res = {
+                'msg': 'failed',
+                'code': '200',
+                'detail': 'Invalid authorization code',
+                'data': {
+                    'is_confirm': False,
+                    'msg': '잘못된 인증번호 입니다'
+                }
+            }
             return Response(res, status=status.HTTP_200_OK)
 
 
