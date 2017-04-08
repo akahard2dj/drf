@@ -106,7 +106,7 @@ def email_check(request):
                 'detail': 'Invalid email address',
                 'data': {
                     'is_valid': False,
-                    'msg': 'Invalid email address',
+                    'msg': '잘못된 이메일',
                     'name': ''
                 }
             }
@@ -122,7 +122,7 @@ def email_check(request):
                     'detail': 'No service University',
                     'data': {
                         'is_valid': False,
-                        'msg': 'No service University',
+                        'msg': '현재 서비스를 하지 않는 대학교',
                         'name': ''
                     }
                 }
