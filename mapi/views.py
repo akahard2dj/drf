@@ -297,9 +297,14 @@ def registration(request):
     value_from_cache = cache.get(key_email)
 
     if not value_from_cache:
-        res = {'msg': 'failed',
-               'code': '400',
-               'detail': 'There is no credential information in cache'}
+        res = {
+            'msg': 'failed',
+            'code': '200',
+            'detail': 'There is no credential information in cache',
+            'data': {
+                'msg': '재인증이 필요합니다',
+            }
+        }
         return Response(res, status=status.HTTP_200_OK)
 
     else:
@@ -308,9 +313,15 @@ def registration(request):
             try:
                 user.user_save(key_email=key_email)
             except validators.ValidationError as e:
-                res = {'msg': 'failed',
-                       'code': '400',
-                       'detail': 'DonkeyUser: {}'.format(e)}
+                res = {
+                    'msg': 'failed',
+                    'code': '200',
+                    'detail': 'DonkeyUser: {}'.format(e),
+                    'data': {
+                        'is_register': False,
+                        'msg': '현재 서비스를 하지 않는 대학교',
+                    }
+                }
                 return Response(res, status=status.HTTP_200_OK)
 
             # bulletin searching
@@ -326,16 +337,26 @@ def registration(request):
 
             cache.delete(key_email)
             token = Token.objects.get(user=user)
-            res = {'msg': 'success',
-                   'code': '200',
-                   'detail': 'correctly data is saved in db',
-                   'data' : {'token': token.key}}
+            res = {
+                'msg': 'success',
+                'code': '200',
+                'detail': 'correctly data is saved in db',
+                'data': {
+                    'token': token.key,
+                    'msg': '성공적으로 가입 되었습니다'
+                }
+            }
             return Response(res, status=status.HTTP_200_OK)
 
         else:
-            res = {'msg': 'success',
-                   'code': '400',
-                   'detail': 'Invalid authorization code'}
+            res = {
+                'msg': 'failed',
+                'code': '200',
+                'detail': 'Invalid authorization code',
+                'data': {
+                    'msg': '잘못된 인증번호 입니다'
+                }
+            }
             return Response(res, status=status.HTTP_200_OK)
 
 
