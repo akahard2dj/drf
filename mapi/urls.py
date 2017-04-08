@@ -11,11 +11,11 @@ urlpatterns = [
 
     # gen-auth-key : temporally generating key in cache
     # confirm-auth-key : authenticating email code in cache
-    url(r'^gen-auth-key/$', views.gen_auth_key, name='gen-auth-key'),
-    url(r'^confirm-auth-key/$', views.confirm_auth_key, name='confirm-auth-key'),
+    url(r'^gen-auth-key$', views.gen_auth_key, name='gen-auth-key'),
+    url(r'^confirm-auth-key$', views.confirm_auth_key, name='confirm-auth-key'),
 
     # registration : user registration
-    url(r'^registration/$', views.registration, name='registration'),
+    url(r'^registration$', views.registration, name='registration'),
 
     # articles : listing articles
     # articles-add : adding an article
