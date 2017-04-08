@@ -291,7 +291,7 @@ def registration(request):
 
         else:
             res = {'msg': 'success',
-                   'code': '200',
+                   'code': '400',
                    'detail': 'Invalid authorization code'}
             return Response(res, status=status.HTTP_200_OK)
 
