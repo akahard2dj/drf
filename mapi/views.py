@@ -160,15 +160,27 @@ def gen_auth_key(request):
         try:
             validators.validate_email(key_email)
         except validators.ValidationError:
-            res = {'msg': 'failed',
-                   'code': '400',
-                   'detail': 'Invalid Email'}
+            res = {
+                'msg': 'failed',
+                'code': '200',
+                'detail': 'Invalid Email',
+                'data': {
+                    'is_sent': False,
+                    'msg': '잘못된 이메일',
+                }
+            }
             return Response(res, status=status.HTTP_200_OK)
         else:
             if cache.get(key_email):
-                res = {'msg': 'failed',
-                       'code': '400',
-                       'detail': 'Processing authentication, check the email'}
+                res = {
+                    'msg': 'failed',
+                    'code': '200',
+                    'detail': 'Processing authentication, check the email',
+                    'data': {
+                        'is_sent': True,
+                        'msg': '이미 인증 메일이 발송되었습니다'
+                    }
+                }
                 return Response(res, status=status.HTTP_200_OK)
             else:
                 auth_code = random_digit_and_number(length_of_value=6)
@@ -177,9 +189,15 @@ def gen_auth_key(request):
                 cache.set(key_email, cache_data, timeout=300)
                 #m = Mailer()
                 #m.send_messages('Authorization Code', auth_code, [key_email])
-                res = {'msg': 'success',
-                       'code': '200',
-                       'detail': 'authorization email is sent'}
+                res = {
+                    'msg': 'success',
+                    'code': '200',
+                    'detail': 'authorization email is sent',
+                    'data': {
+                        'is_sent': True,
+                        'msg': '인증 메일이 발송되었습니다',
+                    }
+                }
 
                 return Response(res, status=status.HTTP_200_OK)
     else:
@@ -187,7 +205,6 @@ def gen_auth_key(request):
                'code': '400',
                'detail': 'Not enough input fields'}
         return Response(res, status=status.HTTP_200_OK)
-
 
 @never_cache
 @api_view(['GET'])
@@ -207,18 +224,30 @@ def confirm_auth_key(request):
     value_from_cache = cache.get(key_email)
 
     if not value_from_cache:
-        res = {'msg': 'failed',
-               'code': '400',
-               'detail': 'There is no credential information in cache'}
+        res = {
+            'msg': 'failed',
+            'code': '200',
+            'detail': 'There is no credential information in cache',
+            'data': {
+                'confirm': False,
+                'msg': '잘못된 접근'
+            }
+        }
         return Response(res, status=status.HTTP_200_OK)
 
     else:
         if auth_code == value_from_cache['code']:
             if DonkeyUser.objects.filter(email=key_email).exists():
                 cache.delete(key_email)
-                res = {'msg': 'success',
-                       'code': '200',
-                       'detail': 'existed_user'}
+                res = {
+                    'msg': 'success',
+                    'code': '200',
+                    'detail': 'existed_user',
+                    'data': {
+                        'confirm': True,
+                        'exist_user':
+                    }
+                }
                 return Response(res, status=status.HTTP_200_OK)
 
             else:
