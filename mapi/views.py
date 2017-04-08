@@ -65,21 +65,29 @@ def celery_test(request):
 @api_view(['GET'])
 def pre_check(request):
     request_data = request.data
-
-    is_token_key = 'token' in request_data
+    is_token_key = request.method == 'GET' and 'token' in request.GET
     if is_token_key:
-        token = request_data['token']
+        token = request.GET['token']
 
         if Token.objects.filter(key=token).exists():
             token = Token.objects.get(key=token)
             donkey_user = token.user
             donkey_user.update_last_login()
-
-            return Response({'msg': 'success'}, status=status.HTTP_202_ACCEPTED)
+            res = {'msg': 'sucess',
+                    'code': '200',
+                    'data': {'result': True}}
+            return Response(res, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid Token'}, status=status.HTTP_401_UNAUTHORIZED)
+            res = {'msg': 'Invalid Token',
+                    'code': '200',
+                    'data': {'result': False}}
+
+            return Response(res, status=status.HTTP_200_OK)
     else:
-        return Response({'msg': 'No Token'}, status=status.HTTP_401_UNAUTHORIZED)
+        res = {'msg': 'failed',
+                'code': '200',
+                'data': {'result': False}}
+        return Response(res, status=status.HTTP_200_OK)
 
 
 @never_cache
@@ -483,6 +491,9 @@ class UserDetail(APIView):
 
 @never_cache
 @api_view(['GET'])
+@permission_classes((permissions.IsAuthenticated, ))
 def hello(request):
-    return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+    res = {'msg': 'success',
+            'code': '200' }
+    return Response(res, status=status.HTTP_200_OK)
 

@@ -4,7 +4,7 @@ from mapi import views
 
 urlpatterns = [
     # pre-check : token check
-    url(r'^pre-check/$', views.pre_check, name='pre-check'),
+    url(r'^pre-check$', views.pre_check, name='pre-check'),
 
     # gen-auth-key : temporally generating key in cache
     # confirm-auth-key : authenticating email code in cache
