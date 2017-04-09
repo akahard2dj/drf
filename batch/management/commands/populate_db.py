@@ -9,6 +9,16 @@ class Command(BaseCommand):
     args = '<foo bar ...>'
     help = 'our help string comes here'
 
+    def _create_test_univ(self):
+        a = University()
+        a.name = '보라대학교'
+        a.domain = 'gmail.com'
+        a.code = 9999
+        a.university_type = UniversityType.objects.get(pk=1)
+        a.school_type = SchoolType.objects.get(pk=4)
+        a.region_a = RegionA.objects.get(pk=1)
+        a.region_b = RegionB.objects.get(pk=1)
+
     def _create_univ(self):
         a = University()
         a.name = '에이대학교'
@@ -111,7 +121,8 @@ class Command(BaseCommand):
             c.set_bulletinboard_id(j.id)
 
     def handle(self, *args, **options):
-        self._create_univ()
-        self._create_dept()
-        self._create_bulletinboard()
-        self._create_user()
+        self._create_test_univ()
+        #self._create_univ()
+        #self._create_dept()
+        #self._create_bulletinboard()
+        #self._create_user()
