@@ -666,27 +666,55 @@ class UserDetail(APIView):
         try:
             donkey_user = DonkeyUser.objects.get(pk=user_id)
         except DonkeyUser.DoesNotExist:
-            return Response({'msg': 'invalid user id'}, status=status.HTTP_400_BAD_REQUEST)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'There is no user in db'
+            }
+            return Response(res, status=status.HTTP_200_OK)
         else:
             serializer = DonkeyUserSerializer(donkey_user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            res = {
+                'code': '200',
+                'msg': 'success',
+                'detail': 'User Information',
+                'data': {
+                    'user_info': serializer.data
+                }
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
     def post(self, request, format=None):
         request_data = request.data
         is_nickname = 'nickname' in request_data
 
         if not is_nickname:
-            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'Not enough data'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
         user_id = int(request.user.id)
         try:
             donkey_user = DonkeyUser.objects.get(pk=user_id)
         except DonkeyUser.DoesNotExist:
-            return Response({'msg': 'invalid user id'}, status=status.HTTP_400_BAD_REQUEST)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'There is no user in db'
+            }
+            return Response(res, status=status.HTTP_200_OK)
         else:
             donkey_user.nickname = request_data['nickname']
             donkey_user.save()
-            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+            res = {
+                'code': '200',
+                'msg': 'success',
+                'detail': 'nickname is changed'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
 #from core.authentication import BoraApiAuthentication
 @never_cache
