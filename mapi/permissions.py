@@ -1,6 +1,12 @@
 from rest_framework import permissions
 from core.authentication import BoraApiAuthentication
 
+from core.models.donkey_user import DonkeyUser
+from core.models.bulletin_board import BulletinBoard
+from core.models.connector import UserBoardConnector
+from core.models.category import *
+
+
 class IsBoraApiAuthenticated(permissions.BasePermission):
     def has_permission(self, request, view):
         a = BoraApiAuthentication()
@@ -10,6 +16,17 @@ class IsBoraApiAuthenticated(permissions.BasePermission):
             return False
         (user, is_auth) = a.authenticate(request)
         return is_auth
+
+
+class isBoardOwner(permissions.BasePermission):
+    def has_permission(self, request, view):
+        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+        try:
+            board_id = request.GET['board_id']
+        except KeyError:
+            return False
+
+        return user_board_connector.check_bulletinboard_id(board_id)
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
