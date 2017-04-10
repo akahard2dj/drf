@@ -400,16 +400,10 @@ class ArticleList(APIView):
 
     @method_decorator(never_cache)
     def get(self, request, format=None):
-        request_data = request.data
-        is_board_id = request.method == 'GET' and 'board_id' in request.GET
         is_offset = request.method == 'GET' and 'offset' in request.GET
         is_page = request.method == 'GET' and 'page' in request.GET
-        is_last_id = request.method == 'GET' and 'last_id' in request.GET
 
-        if is_board_id:
-            board_id = int(request.GET['board_id'])
-        else:
-            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+        board_id = int(request.GET['board_id'])
 
         if is_offset:
             n_offset = int(request.GET['offset'])
