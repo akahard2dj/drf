@@ -19,7 +19,7 @@ urlpatterns = [
 
     # articles : listing articles
     # articles-add : adding an article
-    url(r'^articles/$', views.ArticleList.as_view(), name='articles'),
+    url(r'^articles$', views.ArticleList.as_view(), name='articles'),
     url(r'^article-detail/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
 
     # article-reply
