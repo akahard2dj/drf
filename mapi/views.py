@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from rest_framework import permissions
 from rest_framework import status
-from rest_framework.decorators import (api_view, permission_classes)
+from rest_framework.decorators import (api_view, permission_classes, authentication_classes)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
@@ -18,14 +18,16 @@ from mapi.serializers import ArticleAddSerializer
 from mapi.serializers import ArticleDetailSerializer
 from mapi.serializers import ArticleReplySerializer
 from mapi.serializers import DonkeyUserSerializer
+from mapi.permissions import IsBoraApiAuthenticated
 
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
 from core.models.connector import UserBoardConnector
 from core.models.category import *
+from core.utils import UserCrypto
 
 from core.celery_email import Mailer
-from core.utils import random_digit_and_number
+from core.utils import random_number
 
 from celery import shared_task
 
@@ -183,9 +185,9 @@ def gen_auth_key(request):
                 }
                 return Response(res, status=status.HTTP_200_OK)
             else:
-                auth_code = random_digit_and_number(length_of_value=6)
+                auth_code = random_number()
                 # TODO : when deply to real service, MUST BE CHANGED "test1234" to auth_code
-                cache_data = {'code': "1234", 'status': 'SENT'}
+                cache_data = {'code': "1234", 'status': 'SENT', 'user_type': ''}
                 cache.set(key_email, cache_data, timeout=300)
                 #m = Mailer()
                 #m.send_messages('Authorization Code', auth_code, [key_email])
@@ -206,9 +208,11 @@ def gen_auth_key(request):
                'detail': 'Not enough input fields'}
         return Response(res, status=status.HTTP_200_OK)
 
+
 @never_cache
 @api_view(['GET'])
 def confirm_auth_key(request):
+    crypto = UserCrypto()
     is_email_key = request.method == 'GET' and 'email' in request.GET
     is_authcode_key = request.method == 'GET' and 'auth_code' in request.GET
 
@@ -237,8 +241,12 @@ def confirm_auth_key(request):
 
     else:
         if auth_code == value_from_cache['code']:
-            if DonkeyUser.objects.filter(email=key_email).exists():
-                cache.delete(key_email)
+            encrypted_email = crypto.encode(key_email)
+
+            if DonkeyUser.objects.filter(email=encrypted_email).exists():
+                value_from_cache['status'] = 'CONFIRM'
+                value_from_cache['user_type'] = 'exist_user'
+                cache.set(key_email, value_from_cache, timeout=600)
                 res = {
                     'msg': 'success',
                     'code': '200',
@@ -253,6 +261,7 @@ def confirm_auth_key(request):
 
             else:
                 value_from_cache['status'] = 'CONFIRM'
+                value_from_cache['user_type'] = 'new_user'
                 cache.set(key_email, value_from_cache, timeout=600)
                 res = {
                     'msg': 'success',
@@ -282,6 +291,7 @@ def confirm_auth_key(request):
 @never_cache
 @api_view(['GET'])
 def registration(request):
+    crypto = UserCrypto()
     is_email_key = request.method == 'GET' and 'email' in request.GET
     is_authcode_key = request.method == 'GET' and 'auth_code' in request.GET
 
@@ -302,6 +312,7 @@ def registration(request):
             'code': '200',
             'detail': 'There is no credential information in cache',
             'data': {
+                'is_register': False,
                 'msg': '재인증이 필요합니다',
             }
         }
@@ -309,44 +320,66 @@ def registration(request):
 
     else:
         if auth_code == value_from_cache['code']:
-            user = DonkeyUser()
-            try:
-                user.user_save(key_email=key_email)
-            except validators.ValidationError as e:
+            # new user
+            if value_from_cache['user_type'] == 'new_user':
+                user = DonkeyUser()
+                try:
+                    user.user_save(key_email=key_email)
+                except validators.ValidationError as e:
+                    res = {
+                        'msg': 'failed',
+                        'code': '200',
+                        'detail': 'DonkeyUser: {}'.format(e),
+                        'data': {
+                            'is_register': False,
+                            'msg': '현재 서비스를 하지 않는 대학교',
+                        }
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
+
+                # bulletin searching
+                joined_bulletins = BulletinBoard.objects.filter(university=user.university)
+                _ = UserBoardConnector.objects.create(donkey_user=user)
+                connector_btw_user_board = UserBoardConnector.objects.get(donkey_user=user)
+
+                # default board
+                connector_btw_user_board.set_bulletinboard_id(1)
+
+                for bulletin in joined_bulletins:
+                    connector_btw_user_board.set_bulletinboard_id(bulletin.id)
+
+                token = Token.objects.get(user=user)
+                cache.delete(key_email)
                 res = {
-                    'msg': 'failed',
+                    'msg': 'success',
                     'code': '200',
-                    'detail': 'DonkeyUser: {}'.format(e),
+                    'detail': 'correctly data is saved in db',
                     'data': {
-                        'is_register': False,
-                        'msg': '현재 서비스를 하지 않는 대학교',
+                        'is_register': True,
+                        'token': token.key,
+                        'msg': '성공적으로 가입 되었습니다'
                     }
                 }
                 return Response(res, status=status.HTTP_200_OK)
-
-            # bulletin searching
-            joined_bulletins = BulletinBoard.objects.filter(university=user.university)
-            _ = UserBoardConnector.objects.create(donkey_user=user)
-            connector_btw_user_board = UserBoardConnector.objects.get(donkey_user=user)
-
-            # default board
-            connector_btw_user_board.set_bulletinboard_id(1)
-
-            for bulletin in joined_bulletins:
-                connector_btw_user_board.set_bulletinboard_id(bulletin.id)
-
-            cache.delete(key_email)
-            token = Token.objects.get(user=user)
-            res = {
-                'msg': 'success',
-                'code': '200',
-                'detail': 'correctly data is saved in db',
-                'data': {
-                    'token': token.key,
-                    'msg': '성공적으로 가입 되었습니다'
+            # existing user
+            if value_from_cache['user_type'] == 'exist_user':
+                encrypted_email = crypto.encode(key_email)
+                user = DonkeyUser.objects.get(email=encrypted_email)
+                token = Token.objects.get(user_id=user.id)
+                token.delete()
+                new_token = Token.objects.create(user=user)
+                cache.delete(key_email)
+                res = {
+                    'msg': 'success',
+                    'code': '200',
+                    'detail': 'correctly data is saved in db',
+                    'data': {
+                        'is_register': True,
+                        'token': new_token.key,
+                        'msg': '성공적으로 재발급 되었습니다'
+                    }
                 }
-            }
-            return Response(res, status=status.HTTP_200_OK)
+                return Response(res, status=status.HTTP_200_OK)
 
         else:
             res = {
@@ -354,6 +387,7 @@ def registration(request):
                 'code': '200',
                 'detail': 'Invalid authorization code',
                 'data': {
+                    'is_register': False,
                     'msg': '잘못된 인증번호 입니다'
                 }
             }
@@ -654,10 +688,20 @@ class UserDetail(APIView):
             donkey_user.save()
             return Response({'msg': 'success'}, status=status.HTTP_200_OK)
 
+#from core.authentication import BoraApiAuthentication
 @never_cache
 @api_view(['GET'])
-@permission_classes((permissions.IsAuthenticated, ))
+#@authentication_classes((BoraApiAuthentication,))
+#@permission_classes((IsBoraApiAuthenticated, ))
 def hello(request):
+    header_token =request.META['HTTP_X_TOKEN']
+    print(header_token)
+    #token = Token.objects.get(key=header_token)
+    #print(token)
+    #user = DonkeyUser.objects.get(id=token.user_id)
+    #token.delete()
+    #Token.objects.create(user=user)
+
     res = {'msg': 'success',
             'code': '200' }
     return Response(res, status=status.HTTP_200_OK)
