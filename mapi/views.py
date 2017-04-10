@@ -21,6 +21,7 @@ from mapi.serializers import DonkeyUserSerializer
 from mapi.permissions import IsBoraApiAuthenticated
 from mapi import permissions as bora_permissions
 
+from core.json.response_wrapper import DonkeyJsonResponse
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
 from core.models.connector import UserBoardConnector
@@ -758,21 +759,10 @@ class UserDetail(APIView):
             }
             return Response(res, status=status.HTTP_200_OK)
 
-#from core.authentication import BoraApiAuthentication
+
 @never_cache
 @api_view(['GET'])
-#@authentication_classes((BoraApiAuthentication,))
-#@permission_classes((IsBoraApiAuthenticated, ))
 def hello(request):
-    header_token =request.META['HTTP_X_TOKEN']
-    print(header_token)
-    #token = Token.objects.get(key=header_token)
-    #print(token)
-    #user = DonkeyUser.objects.get(id=token.user_id)
-    #token.delete()
-    #Token.objects.create(user=user)
-
-    res = {'msg': 'success',
-            'code': '200' }
-    return Response(res, status=status.HTTP_200_OK)
+    data = {'message': 'hello'}
+    return DonkeyJsonResponse('200', 'success', 'success', data, status.HTTP_200_OK)
 
