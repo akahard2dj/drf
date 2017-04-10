@@ -19,6 +19,7 @@ from mapi.serializers import ArticleDetailSerializer
 from mapi.serializers import ArticleReplySerializer
 from mapi.serializers import DonkeyUserSerializer
 from mapi.permissions import IsBoraApiAuthenticated
+from mapi import permissions as bora_permissions
 
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
@@ -395,48 +396,94 @@ def registration(request):
 
 
 class ArticleList(APIView):
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (permissions.IsAuthenticated, bora_permissions.isBoardOwner)
 
     @method_decorator(never_cache)
     def get(self, request, format=None):
         request_data = request.data
-        is_board_id = 'board_id' in request_data
+        is_board_id = request.method == 'GET' and 'board_id' in request.GET
+        is_offset = request.method == 'GET' and 'offset' in request.GET
+        is_page = request.method == 'GET' and 'page' in request.GET
+        is_last_id = request.method == 'GET' and 'last_id' in request.GET
+
         if is_board_id:
-            board_id = request.data['board_id']
+            board_id = int(request.GET['board_id'])
         else:
             return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if check_board(int(request.user.id), int(request.data['board_id'])):
-            # articles = Article.objects.filter(board_id=board_id).exclude(status=2)
-            articles = Article.objects.filter(board_id=board_id).all()
-            serializer = ArticleSerializer(articles, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+        if is_offset:
+            n_offset = int(request.GET['offset'])
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            n_offset = 5
+
+        if is_page:
+            n_page = int(request.GET['page'])
+        else:
+            n_page = 1
+
+        if n_page == 1:
+            last_id = Article.objects.first().id
+        else:
+            last_id = int(request.GET['last_id'])
+
+        n_start = (n_page-1) * n_offset
+        n_end = n_page * n_offset
+        articles = Article.objects.filter(board_id=board_id).filter(id__lte=last_id).all()[n_start:n_end]
+
+        serializer = ArticleSerializer(articles, many=True)
+        res = {
+            'code': '200',
+            'msg': 'success',
+            'detail': 'articles list',
+            'data': {
+                'artilces': serializer.data,
+                'board_id': board_id,
+                'offset': n_offset,
+                'page': n_page + 1,
+                'last_id': last_id,
+                'next_url': 'articles?board_id={}&paage={}&offset={}&last_id={}'
+                    .format(board_id, n_page+1, n_offset, last_id)
+            }
+        }
+
+        return Response(res, status=status.HTTP_200_OK)
 
     def post(self, request, format=None):
         request_data = request.data
         is_title = 'title' in request_data
         is_content = 'content' in request_data
-        is_board_id = 'board_id' in request_data
+        is_board_id = request.method == 'POST' and 'board_id' in request.GET
 
         if is_title and is_content and is_board_id:
             items = request_data
         else:
-            return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'Not enough fields',
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
-        if check_board(request.user.id, request.data['board_id']):
-            items.update({'user': request.user.id})
-            items.update({'board': request_data['board_id']})
+        items.update({'user': request.user.id})
+        items.update({'board': request.GET['board_id']})
 
-            serializer = ArticleAddSerializer(data=items)
+        serializer = ArticleAddSerializer(data=items)
 
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+            serializer.save()
+            res = {
+                'code': '200',
+                'msg': 'success',
+                'detail': 'article is saved'
+            }
+            return Response(res, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'serializer validation is failed'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
 
 class ArticleAdd(APIView):
