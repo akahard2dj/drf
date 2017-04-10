@@ -11,6 +11,11 @@ def random_digit_and_number(length_of_value=7):
     random_value = ''.join(random.SystemRandom().choice(choices) for _ in range(length_of_value))
     return random_value
 
+def random_number(length_of_value=6):
+    choices = string.digits
+    random_value = ''.join(random.SystemRandom().choice(choices) for _ in range(length_of_value))
+    return random_value
+
 
 class UserCrypto:
     def __init__(self):
