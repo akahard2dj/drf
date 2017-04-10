@@ -423,7 +423,8 @@ class ArticleList(APIView):
         n_start = (n_page-1) * n_offset
         n_end = n_page * n_offset
         articles = Article.objects.filter(board_id=board_id).filter(id__lte=last_id).all()[n_start:n_end]
-
+        
+        # TODO: last page exception
         serializer = ArticleSerializer(articles, many=True)
         res = {
             'code': '200',
