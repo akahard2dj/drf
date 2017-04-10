@@ -19,6 +19,23 @@ class Command(BaseCommand):
         a.region_a = RegionA.objects.get(pk=1)
         a.region_b = RegionB.objects.get(pk=1)
 
+    def _create_test_dept(self):
+        a = Department()
+        a.name = '인문학'
+        a.save()
+
+        b = Department()
+        b.name = '자연/공학'
+        b.save()
+
+        c = Department()
+        c.name = '의치학과'
+        c.save()
+
+        d = Department()
+        d.name = '예체능'
+        d.save()
+
     def _create_univ(self):
         a = University()
         a.name = '에이대학교'
@@ -122,6 +139,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self._create_test_univ()
+        self._create_test_dept()
         #self._create_univ()
         #self._create_dept()
         #self._create_bulletinboard()
