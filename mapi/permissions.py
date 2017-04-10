@@ -1,4 +1,15 @@
 from rest_framework import permissions
+from core.authentication import BoraApiAuthentication
+
+class IsBoraApiAuthenticated(permissions.BasePermission):
+    def has_permission(self, request, view):
+        a = BoraApiAuthentication()
+        try:
+            _ = request.META['HTTP_X_TOKEN']
+        except KeyError:
+            return False
+        (user, is_auth) = a.authenticate(request)
+        return is_auth
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
