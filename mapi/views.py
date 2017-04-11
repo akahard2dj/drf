@@ -27,6 +27,7 @@ from core.models.bulletin_board import BulletinBoard
 from core.models.connector import UserBoardConnector
 from core.models.category import *
 from core.utils import UserCrypto
+from core.authentication import BoraApiAuthentication
 
 from core.celery_email import Mailer
 from core.utils import random_number
@@ -368,6 +369,10 @@ def registration(request):
                 encrypted_email = crypto.encode(key_email)
                 user = DonkeyUser.objects.get(email=encrypted_email)
                 token = Token.objects.get(user_id=user.id)
+                #deleting caching
+                if cache.get(token.key):
+                    cache.delete(token.key)
+
                 token.delete()
                 new_token = Token.objects.create(user=user)
                 cache.delete(key_email)
@@ -397,7 +402,13 @@ def registration(request):
 
 
 class ArticleList(APIView):
-    permission_classes = (permissions.IsAuthenticated, bora_permissions.isBoardOwner)
+    permission_classes = (
+        #IsBoraApiAuthenticated,
+        bora_permissions.ArticlesPermission,
+    )
+    authentication_classes = (
+        BoraApiAuthentication,
+    )
 
     @method_decorator(never_cache)
     def get(self, request, format=None):
@@ -417,13 +428,13 @@ class ArticleList(APIView):
             n_page = 1
 
         if n_page == 1:
-            last_id = Article.objects.first().id
+            first_id = Article.objects.filter(board_id=board_id).first().id
         else:
-            last_id = int(request.GET['last_id'])
+            first_id = int(request.GET['last_id'])
 
         n_start = (n_page-1) * n_offset
         n_end = n_page * n_offset
-        articles = Article.objects.filter(board_id=board_id).filter(id__lte=last_id).all()[n_start:n_end]
+        articles = Article.objects.filter(board_id=board_id).filter(id__lte=first_id).all()[n_start:n_end]
         
         # TODO: last page exception
         serializer = ArticleSerializer(articles, many=True)
@@ -436,9 +447,9 @@ class ArticleList(APIView):
                 'board_id': board_id,
                 'offset': n_offset,
                 'page': n_page + 1,
-                'last_id': last_id,
+                'first_id': first_id,
                 'next_url': 'articles?board_id={}&paage={}&offset={}&last_id={}'
-                    .format(board_id, n_page+1, n_offset, last_id)
+                    .format(board_id, n_page+1, n_offset, first_id)
             }
         }
 
@@ -480,34 +491,6 @@ class ArticleList(APIView):
                 'detail': 'serializer validation is failed'
             }
             return Response(res, status=status.HTTP_200_OK)
-
-
-class ArticleAdd(APIView):
-    permission_classes = (permissions.IsAuthenticated, )
-
-    def post(self, request, format=None):
-        request_data = request.data
-        is_title = 'title' in request_data
-        is_content = 'content' in request_data
-        is_board_id = 'board_id' in request_data
-
-        if is_title and is_content and is_board_id:
-            items = request_data
-        else:
-            return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if check_board(request.user.id, request.data['board_id']):
-            items.update({'user': request.user.id})
-            items.update({'board': request_data['board_id']})
-
-            serializer = ArticleAddSerializer(data=items)
-
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.error, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 class ArticleDetail(APIView):
@@ -765,4 +748,17 @@ class UserDetail(APIView):
 def hello(request):
     data = {'message': 'hello'}
     return DonkeyJsonResponse('200', 'success', 'success', data, status.HTTP_200_OK)
+
+
+@never_cache
+@api_view(['GET'])
+@authentication_classes((BoraApiAuthentication, ))
+#@permission_classes((IsBoraApiAuthenticated, ))
+def custom_auth_check(request):
+    print(request.user)
+    res = {
+        'msg': 'success',
+        'code': '200'
+    }
+    return Response(res, status=status.HTTP_200_OK)
 
