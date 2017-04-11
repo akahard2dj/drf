@@ -292,15 +292,15 @@ def confirm_auth_key(request):
 
 
 @never_cache
-@api_view(['GET'])
+@api_view(['POST'])
 def registration(request):
     crypto = UserCrypto()
-    is_email_key = request.method == 'GET' and 'email' in request.GET
-    is_authcode_key = request.method == 'GET' and 'auth_code' in request.GET
+    is_email_key = request.method == 'POST' and 'email' in request.data
+    is_authcode_key = request.method == 'POST' and 'auth_code' in request.data
 
     if is_email_key and is_authcode_key:
-        key_email = request.GET['email']
-        auth_code = request.GET['auth_code']
+        key_email = request.data['email']
+        auth_code = request.data['auth_code']
     else:
         res = {'msg': 'failed',
                'code': '400',
