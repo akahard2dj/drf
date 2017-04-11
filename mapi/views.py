@@ -247,9 +247,21 @@ def confirm_auth_key(request):
             encrypted_email = crypto.encode(key_email)
 
             if DonkeyUser.objects.filter(email=encrypted_email).exists():
-                value_from_cache['status'] = 'CONFIRM'
-                value_from_cache['user_type'] = 'exist_user'
-                cache.set(key_email, value_from_cache, timeout=600)
+                encrypted_email = crypto.encode(key_email)
+                user = DonkeyUser.objects.get(email=encrypted_email)
+                token = Token.objects.get(user_id=user.id)
+                # deleting caching
+                if cache.get(token.key):
+                    cache.delete(token.key)
+
+                token.delete()
+                new_token = Token.objects.create(user=user)
+                cache.delete(key_email)
+
+
+                #value_from_cache['status'] = 'CONFIRM'
+                #value_from_cache['user_type'] = 'exist_user'
+                #cache.set(key_email, value_from_cache, timeout=600)
                 res = {
                     'msg': 'success',
                     'code': '200',
@@ -258,6 +270,7 @@ def confirm_auth_key(request):
                         'is_confirm': True,
                         'is_exist': True,
                         'msg': '기존의 유저입니다',
+                        'token': new_token.key
                     }
                 }
                 return Response(res, status=status.HTTP_200_OK)
