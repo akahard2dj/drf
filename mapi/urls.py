@@ -4,15 +4,15 @@ from mapi import views
 
 urlpatterns = [
     # pre-check : token check
-    url(r'^pre-check$', views.pre_check, name='pre-check'),
+    url(r'^preCheck$', views.pre_check, name='pre-check'),
 
     # email-check : email validation and getting a name of a university
-    url(r'^email-check$', views.email_check, name='email-check'),
+    url(r'^emailCheck$', views.email_check, name='email-check'),
 
     # gen-auth-key : temporally generating key in cache
     # confirm-auth-key : authenticating email code in cache
-    url(r'^gen-auth-key$', views.gen_auth_key, name='gen-auth-key'),
-    url(r'^confirm-auth-key$', views.confirm_auth_key, name='confirm-auth-key'),
+    url(r'^genAuthKey$', views.gen_auth_key, name='gen-auth-key'),
+    url(r'^confirmAuthKey$', views.confirm_auth_key, name='confirm-auth-key'),
 
     # registration : user registration
     url(r'^registration$', views.registration, name='registration'),
@@ -20,17 +20,18 @@ urlpatterns = [
     # articles : listing articles
     # articles-add : adding an article
     url(r'^articles$', views.ArticleList.as_view(), name='articles'),
-    url(r'^article-detail/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
+    url(r'^articleDetail/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
 
     # article-reply
-    url(r'^article-detail/(?P<article_pk>[0-9]+)/article_replies/$', views.ArticleReplyList.as_view(), name='article-reply'),
-    url(r'^article-detail/(?P<article_pk>[0-9]+)/article_replies/(?P<reply_pk>[0-9]+)/$', views.ArticleReplyDetail.as_view(), name='article-reply-detail'),
+    url(r'^articleDetail/(?P<article_pk>[0-9]+)/articleReplies/$', views.ArticleReplyList.as_view(), name='article-reply'),
+    url(r'^articleDetail/(?P<article_pk>[0-9]+)/articleReplies/(?P<reply_pk>[0-9]+)/$', views.ArticleReplyDetail.as_view(), name='article-reply-detail'),
 
     # donkeyuser
     url(r'^donkeyuser/$', views.UserDetail.as_view(), name='user-detail'),
 
     # check service alive
     url(r'^hello/$', views.hello, name='hello'),
+    url(r'^auth_check/$', views.custom_auth_check, name='custom-auth-check')
 
 ]
 
