@@ -61,6 +61,7 @@ class DonkeyUser(AbstractBaseUser):
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
     is_confirm = models.BooleanField(default=False)
+    is_block = models.BooleanField(default=False)
 
     objects = DonkeyUserManager()
 
@@ -84,6 +85,10 @@ class DonkeyUser(AbstractBaseUser):
         "Does the user have permissions to view the app `app_label`?"
         # Simplest possible answer: Yes, always
         return True
+
+    @property
+    def is_reported(self):
+        return self.is_block
 
     @property
     def is_staff(self):
