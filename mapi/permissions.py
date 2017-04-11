@@ -1,5 +1,5 @@
 from rest_framework import permissions
-from core.authentication import BoraApiAuthentication
+from django.contrib.auth.models import AnonymousUser
 
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
@@ -9,16 +9,11 @@ from core.models.category import *
 
 class IsBoraApiAuthenticated(permissions.BasePermission):
     def has_permission(self, request, view):
-        a = BoraApiAuthentication()
-        try:
-            _ = request.META['HTTP_X_TOKEN']
-        except KeyError:
-            return False
-        (user, is_auth) = a.authenticate(request)
+        is_auth = request.user and request.user.is_authenticated()
         return is_auth
 
 
-class isBoardOwner(permissions.BasePermission):
+class IsBoardOwner(permissions.BasePermission):
     def has_permission(self, request, view):
         user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
         try:
@@ -27,6 +22,34 @@ class isBoardOwner(permissions.BasePermission):
             return False
 
         return user_board_connector.check_bulletinboard_id(board_id)
+
+
+class ArticlesPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method == 'POST':
+            user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+            try:
+                board_id = int(request.GET['board_id'])
+            except KeyError:
+                return False
+            user = DonkeyUser.objects.get(email=request.user)
+
+            return not user.is_reported and user_board_connector.check_bulletinboard_id(board_id)
+
+        if request.method == 'GET':
+            if int(request.GET['board_id']) == 1:
+                return True
+            else:
+                if request.user == AnonymousUser():
+                    return False
+                else:
+                    user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+                    try:
+                        board_id = request.GET['board_id']
+                    except KeyError:
+                        return False
+
+                    return user_board_connector.check_bulletinboard_id(board_id)
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):

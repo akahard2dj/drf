@@ -1,80 +1,39 @@
-from rest_framework import permissions
-from django.contrib.auth.models import AnonymousUser
+from django.conf.urls import url
+from rest_framework.urlpatterns import format_suffix_patterns
+from mapi import views
 
-from core.models.donkey_user import DonkeyUser
-from core.models.bulletin_board import BulletinBoard
-from core.models.connector import UserBoardConnector
-from core.models.category import *
+urlpatterns = [
+    # pre-check : token check
+    url(r'^preCheck$', views.pre_check, name='pre-check'),
 
+    # email-check : email validation and getting a name of a university
+    url(r'^emailCheck$', views.email_check, name='email-check'),
 
-class IsBoraApiAuthenticated(permissions.BasePermission):
-    def has_permission(self, request, view):
-        is_auth = request.user and request.user.is_authenticated()
-        return is_auth
+    # gen-auth-key : temporally generating key in cache
+    # confirm-auth-key : authenticating email code in cache
+    url(r'^genAuthKey$', views.gen_auth_key, name='gen-auth-key'),
+    url(r'^confirmAuthKey$', views.confirm_auth_key, name='confirm-auth-key'),
 
+    # registration : user registration
+    url(r'^registration$', views.registration, name='registration'),
 
-class IsBoardOwner(permissions.BasePermission):
-    def has_permission(self, request, view):
-        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-        try:
-            board_id = request.GET['board_id']
-        except KeyError:
-            return False
+    # articles : listing articles
+    # articles-add : adding an article
+    url(r'^articles/$', views.ArticleList.as_view(), name='articles'),
+    url(r'^articleDetail/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
 
-        return user_board_connector.check_bulletinboard_id(board_id)
+    # article-reply
+    url(r'^articleDetail/(?P<article_pk>[0-9]+)/articleReplies/$', views.ArticleReplyList.as_view(), name='article-reply'),
+    url(r'^articleDetail/(?P<article_pk>[0-9]+)/articleReplies/(?P<reply_pk>[0-9]+)/$', views.ArticleReplyDetail.as_view(), name='article-reply-detail'),
 
+    # donkeyuser
+    url(r'^donkeyuser/$', views.UserDetail.as_view(), name='user-detail'),
 
-class ArticlesPermission(permissions.BasePermission):
-    def has_permission(self, request, view):
-        if request.method == 'POST':
-            user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-            try:
-                board_id = int(request.GET['board_id'])
-            except KeyError:
-                return False
-            user = DonkeyUser.objects.get(email=request.user)
+    # check service alive
+    url(r'^hello/$', views.hello, name='hello'),
 
-            return not user.is_reported and user_board_connector.check_bulletinboard_id(board_id)
+    url(r'auth-check/$', views.custom_auth_check, name='auth-check')
 
-        if request.method == 'GET':
-            if int(request.GET['board_id']) == 1:
-                return True
-            else:
-                if request.user == AnonymousUser():
-                    return False
-                else:
-                    user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-                    try:
-                        board_id = request.GET['board_id']
-                    except KeyError:
-                        return False
+]
 
-                    return user_board_connector.check_bulletinboard_id(board_id)
-
-
-class IsOwnerOrReadOnly(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        #if request.method in permissions.SAFE_METHODS:
-        #    return True
-        print(obj.owner, request.user)
-        return request.user == obj
-
-
-class IsDeleteAndIsOwner(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        is_owner = request.user == obj
-        is_delete = request.method == 'DELETE'
-
-        return is_owner and is_delete
-
-
-class IsPostAndIsAuthenticated(permissions.BasePermission):
-    def has_permission(self, request, view):
-        if request.method == 'POST':
-            is_post = True
-        else:
-            is_post = False
-
-        is_auth = request.user and request.user.is_authenticated()
-
-        return is_post and is_auth
+urlpatterns = format_suffix_patterns(urlpatterns)
