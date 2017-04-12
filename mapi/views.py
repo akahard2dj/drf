@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 
 from django.views.decorators.cache import never_cache
+from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 from django.core.cache import cache
 from django.core import validators
@@ -18,6 +19,8 @@ from mapi.serializers import ArticleAddSerializer
 from mapi.serializers import ArticleDetailSerializer
 from mapi.serializers import ArticleReplySerializer
 from mapi.serializers import DonkeyUserSerializer
+from mapi.serializers import DepartmentSerializer
+
 from mapi.permissions import IsBoraApiAuthenticated
 from mapi import permissions as bora_permissions
 
@@ -189,7 +192,7 @@ def gen_auth_key(request):
                 return Response(res, status=status.HTTP_200_OK)
             else:
                 auth_code = random_number()
-                # TODO : when deply to real service, MUST BE CHANGED "test1234" to auth_code
+                # TODO : when deply to real service, MUST BE CHANGED "1234" to auth_code
                 cache_data = {'code': "1234", 'status': 'SENT', 'user_type': ''}
                 cache.set(key_email, cache_data, timeout=300)
                 #m = Mailer()
@@ -210,6 +213,80 @@ def gen_auth_key(request):
                'code': '400',
                'detail': 'Not enough input fields'}
         return Response(res, status=status.HTTP_200_OK)
+
+
+@never_cache
+@api_view(['GET'])
+def is_exist_user(request):
+    crypto = UserCrypto()
+    is_email_key = request.method == 'GET' and 'email' in request.GET
+    is_authcode_key = request.method == 'GET' and 'auth_code' in request.GET
+
+    if is_email_key and is_authcode_key:
+        key_email = request.GET['email']
+        auth_code = request.GET['auth_code']
+    else:
+        res = {'msg': 'failed',
+               'code': '400',
+               'detail': 'Not enough input fields'}
+        return Response(res, status=status.HTTP_200_OK)
+
+    value_from_cache = cache.get(key_email)
+
+    if not value_from_cache:
+        res = {
+            'msg': 'failed',
+            'code': '200',
+            'detail': 'There is no credential information in cache',
+            'data': {
+                'is_success': False,
+                'is_exist': False,
+                'msg': '재인증이 필요합니다',
+            }
+        }
+        return Response(res, status=status.HTTP_200_OK)
+
+    else:
+        if auth_code == value_from_cache['code']:
+            encrypted_email = crypto.encode(key_email)
+
+            if DonkeyUser.objects.filter(email=encrypted_email).exists():
+                res = {
+                    'msg': 'success',
+                    'code': '200',
+                    'detail': 'exsited_user',
+                    'data': {
+                        'is_success': True,
+                        'is_exist': True,
+                        'msg': '기존의 사용자 입니다. 토큰을 재발행 할까요?',
+                    }
+                }
+                return Response(res, status=status.HTTP_200_OK)
+            else:
+                res = {
+                    'msg': 'success',
+                    'code': '200',
+                    'detail': 'new_user',
+                    'data': {
+                        'is_success': True,
+                        'is_exist': False,
+                        'msg': '새로운 사용자입니다. 등록 진행합니다'
+                    }
+                }
+                return Response(res, status=status.HTTP_200_OK)
+
+        else:
+            res = {
+                'msg': 'failed',
+                'code': '200',
+                'detail': 'Invalid authorization code',
+                'data': {
+                    'is_success': True,
+                    'is_exist': False,
+                    'msg': '잘못된 인증번호 입니다'
+                }
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
 
 @never_cache
@@ -258,10 +335,6 @@ def confirm_auth_key(request):
                 new_token = Token.objects.create(user=user)
                 cache.delete(key_email)
 
-
-                #value_from_cache['status'] = 'CONFIRM'
-                #value_from_cache['user_type'] = 'exist_user'
-                #cache.set(key_email, value_from_cache, timeout=600)
                 res = {
                     'msg': 'success',
                     'code': '200',
@@ -278,7 +351,7 @@ def confirm_auth_key(request):
             else:
                 value_from_cache['status'] = 'CONFIRM'
                 value_from_cache['user_type'] = 'new_user'
-                cache.set(key_email, value_from_cache, timeout=600)
+                cache.set(key_email, value_from_cache, timeout=1800)
                 res = {
                     'msg': 'success',
                     'code': '200',
@@ -303,6 +376,58 @@ def confirm_auth_key(request):
             }
             return Response(res, status=status.HTTP_200_OK)
 
+@cache_page(30)
+@api_view(['GET'])
+def get_departments(request):
+    is_email_key = request.method == 'GET' and 'email' in request.GET
+    is_authcode_key = request.method == 'GET' and 'auth_code' in request.GET
+
+    if is_email_key and is_authcode_key:
+        key_email = request.GET['email']
+        auth_code = request.GET['auth_code']
+    else:
+        res = {'msg': 'failed',
+               'code': '400',
+               'detail': 'Not enough input fields'}
+        return Response(res, status=status.HTTP_200_OK)
+
+    value_from_cache = cache.get(key_email)
+
+    if not value_from_cache:
+        res = {
+            'msg': 'failed',
+            'code': '200',
+            'detail': 'There is no credential information in cache',
+            'data': {
+                'msg': '재인증이 필요합니다',
+            }
+        }
+        return Response(res, status=status.HTTP_200_OK)
+    else:
+        if auth_code == value_from_cache['code']:
+            departments = Department.objects.all()
+            serializer = DepartmentSerializer(departments, many=True)
+            res = {
+                'msg': 'success',
+                'code': '200',
+                'detail': 'department information',
+                'data': {
+                    'department': serializer.data,
+                }
+            }
+            return Response(res, status=status.HTTP_200_OK)
+
+        else:
+            res = {
+                'msg': 'failed',
+                'code': '200',
+                'detail': 'Invalid authorization code',
+                'data': {
+                    'msg': '잘못된 인증번호 입니다'
+                }
+            }
+            return Response(res, status=status.HTTP_200_OK)
+
 
 @never_cache
 @api_view(['POST'])
@@ -310,10 +435,11 @@ def registration(request):
     crypto = UserCrypto()
     is_email_key = request.method == 'POST' and 'email' in request.data
     is_authcode_key = request.method == 'POST' and 'auth_code' in request.data
-
-    if is_email_key and is_authcode_key:
+    is_dept_id = request.method == 'POST' and 'department_id' in request.data
+    if is_email_key and is_authcode_key and is_dept_id:
         key_email = request.data['email']
         auth_code = request.data['auth_code']
+        dept_id = int(request.data['department_id'])
     else:
         res = {'msg': 'failed',
                'code': '400',
@@ -340,7 +466,7 @@ def registration(request):
             if value_from_cache['user_type'] == 'new_user':
                 user = DonkeyUser()
                 try:
-                    user.user_save(key_email=key_email)
+                    user.user_save(key_email=key_email, department_id=dept_id)
                 except validators.ValidationError as e:
                     res = {
                         'msg': 'failed',
@@ -374,29 +500,6 @@ def registration(request):
                         'is_register': True,
                         'token': token.key,
                         'msg': '성공적으로 가입 되었습니다'
-                    }
-                }
-                return Response(res, status=status.HTTP_200_OK)
-            # existing user
-            if value_from_cache['user_type'] == 'exist_user':
-                encrypted_email = crypto.encode(key_email)
-                user = DonkeyUser.objects.get(email=encrypted_email)
-                token = Token.objects.get(user_id=user.id)
-                #deleting caching
-                if cache.get(token.key):
-                    cache.delete(token.key)
-
-                token.delete()
-                new_token = Token.objects.create(user=user)
-                cache.delete(key_email)
-                res = {
-                    'msg': 'success',
-                    'code': '200',
-                    'detail': 'correctly data is saved in db',
-                    'data': {
-                        'is_register': True,
-                        'token': new_token.key,
-                        'msg': '성공적으로 재발급 되었습니다'
                     }
                 }
                 return Response(res, status=status.HTTP_200_OK)
