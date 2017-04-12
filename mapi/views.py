@@ -256,7 +256,7 @@ def is_exist_user(request):
                 res = {
                     'msg': 'success',
                     'code': '200',
-                    'detail': 'exsited_user',
+                    'detail': 'existed_user',
                     'data': {
                         'is_success': True,
                         'is_exist': True,
