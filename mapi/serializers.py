@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
+from core.models.category import *
 
 from mapi.models import Article
 from mapi.models import ArticleReply
@@ -83,3 +84,9 @@ class DonkeyUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = DonkeyUser
         fields = ('id', 'username', 'nickname', 'last_login')
+
+
+class DepartmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
+        fields = ('id', 'name')
