@@ -432,7 +432,6 @@ def get_departments(request):
 @never_cache
 @api_view(['POST'])
 def registration(request):
-    crypto = UserCrypto()
     is_email_key = request.method == 'POST' and 'email' in request.data
     is_authcode_key = request.method == 'POST' and 'auth_code' in request.data
     is_dept_id = request.method == 'POST' and 'department_id' in request.data
@@ -536,7 +535,7 @@ class ArticleList(APIView):
         if is_offset:
             n_offset = int(request.GET['offset'])
         else:
-            n_offset = 5
+            n_offset = 10
 
         if is_page:
             n_page = int(request.GET['page'])
@@ -551,25 +550,44 @@ class ArticleList(APIView):
         n_start = (n_page-1) * n_offset
         n_end = n_page * n_offset
         articles = Article.objects.filter(board_id=board_id).filter(id__lte=first_id).all()[n_start:n_end]
-        
-        # TODO: last page exception
         serializer = ArticleSerializer(articles, many=True)
-        res = {
-            'code': '200',
-            'msg': 'success',
-            'detail': 'articles list',
-            'data': {
-                'artilces': serializer.data,
-                'board_id': board_id,
-                'offset': n_offset,
-                'page': n_page + 1,
-                'first_id': first_id,
-                'next_url': 'articles?board_id={}&paage={}&offset={}&last_id={}'
-                    .format(board_id, n_page+1, n_offset, first_id)
+        n_articles = len(articles)
+        if n_articles != n_offset:
+            # last or no article
+            res = {
+                'code': '200',
+                'msg': 'success',
+                'detail': 'articles list',
+                'data': {
+                    'articles': serializer.data,
+                    'board_id': board_id,
+                    'offset': n_offset,
+                    'page': n_page,
+                    'first_id': first_id,
+                    'n_articles': n_articles,
+                    'is_next': False
+                }
             }
-        }
-
-        return Response(res, status=status.HTTP_200_OK)
+            return Response(res, status=status.HTTP_200_OK)
+        else:
+            # general situation
+            res = {
+                'code': '200',
+                'msg': 'success',
+                'detail': 'articles list',
+                'data': {
+                    'articles': serializer.data,
+                    'board_id': board_id,
+                    'offset': n_offset,
+                    'page': n_page + 1,
+                    'first_id': first_id,
+                    'n_articles': n_articles,
+                    'is_next': True,
+                    'next_url': 'articles?board_id={}&page={}&offset={}&last_id={}'
+                        .format(board_id, n_page+1, n_offset, first_id)
+                }
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
     def post(self, request, format=None):
         request_data = request.data
