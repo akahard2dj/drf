@@ -5,6 +5,7 @@ from mapi import views
 urlpatterns = [
     # pre-check : token check
     url(r'^preCheck$', views.pre_check, name='pre-check'),
+    url(r'^init$', views.InitDonkey.as_view(), name='init-donkey'),
 
     # email-check : email validation and getting a name of a university
     url(r'^emailCheck$', views.email_check, name='email-check'),

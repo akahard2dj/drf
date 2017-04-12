@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 
+from django.contrib.auth.models import AnonymousUser
 from django.views.decorators.cache import never_cache
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
@@ -20,6 +21,7 @@ from mapi.serializers import ArticleDetailSerializer
 from mapi.serializers import ArticleReplySerializer
 from mapi.serializers import DonkeyUserSerializer
 from mapi.serializers import DepartmentSerializer
+from mapi.serializers import BulletinBoardSerializer
 
 from mapi.permissions import IsBoraApiAuthenticated
 from mapi import permissions as bora_permissions
@@ -516,6 +518,50 @@ def registration(request):
             return Response(res, status=status.HTTP_200_OK)
 
 
+class InitDonkey(APIView):
+    authentication_classes = (
+        BoraApiAuthentication,
+    )
+
+    @method_decorator(never_cache)
+    def get(self, request, format=None):
+        if request.user == AnonymousUser():
+            board_id = 1
+            board = BulletinBoard.objects.filter(pk=1)
+            serializer = BulletinBoardSerializer(board, many=True)
+
+            res = {
+                'msg': 'success',
+                'code': '200',
+                'detail': 'Anonymous User',
+                'data': {
+                    'is_anonymous': True,
+                    'board': serializer.data,
+                }
+            }
+            return Response(res, status=status.HTTP_200_OK)
+        else:
+            board_ids = UserBoardConnector.objects.get(pk=request.user.id).get_bulletinboard_id()
+            boards = []
+            for board_id in board_ids:
+                boards.append(BulletinBoard.objects.get(pk=board_id))
+
+            serializer_board = BulletinBoardSerializer(boards, many=True)
+            serializer_user = DonkeyUserSerializer(DonkeyUser.objects.get(id=request.user.id))
+            res = {
+                'msg': 'success',
+                'code': '200',
+                'detail': 'Current User',
+                'data': {
+                    'is_anonymous': False,
+                    'board': serializer_board.data,
+                    'user': serializer_user.data,
+                }
+            }
+            return Response(res, status=status.HTTP_200_OK)
+
+
+
 class ArticleList(APIView):
     permission_classes = (
         #IsBoraApiAuthenticated,
@@ -543,9 +589,22 @@ class ArticleList(APIView):
             n_page = 1
 
         if n_page == 1:
-            first_id = Article.objects.filter(board_id=board_id).first().id
+            try:
+                first_id = Article.objects.filter(board_id=board_id).first().id
+            except AttributeError:
+                first_id = 0
         else:
             first_id = int(request.GET['last_id'])
+
+        if first_id == 0:
+            res = {
+                'code': '200',
+                'msg': 'success',
+                'detail': 'empty article list',
+                'data': {
+                    'is_empty': True,
+                }
+            }
 
         n_start = (n_page-1) * n_offset
         n_end = n_page * n_offset
@@ -559,6 +618,7 @@ class ArticleList(APIView):
                 'msg': 'success',
                 'detail': 'articles list',
                 'data': {
+                    'is_empty': False,
                     'articles': serializer.data,
                     'board_id': board_id,
                     'offset': n_offset,
@@ -576,6 +636,7 @@ class ArticleList(APIView):
                 'msg': 'success',
                 'detail': 'articles list',
                 'data': {
+                    'is_empty': False,
                     'articles': serializer.data,
                     'board_id': board_id,
                     'offset': n_offset,
