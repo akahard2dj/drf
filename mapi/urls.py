@@ -9,17 +9,21 @@ urlpatterns = [
     # email-check : email validation and getting a name of a university
     url(r'^emailCheck$', views.email_check, name='email-check'),
 
+    # department : providing a data of department
+    url(r'^departments', views.get_departments, name='department'),
+
     # gen-auth-key : temporally generating key in cache
     # confirm-auth-key : authenticating email code in cache
     url(r'^genAuthKey$', views.gen_auth_key, name='gen-auth-key'),
+    url(r'^isExistUser', views.is_exist_user, name='is-exist-user'),
     url(r'^confirmAuthKey$', views.confirm_auth_key, name='confirm-auth-key'),
 
     # registration : user registration
-    url(r'^registration$', views.registration, name='registration'),
+    url(r'^registration/$', views.registration, name='registration'),
 
     # articles : listing articles
     # articles-add : adding an article
-    url(r'^articles/$', views.ArticleList.as_view(), name='articles'),
+    url(r'^articles$', views.ArticleList.as_view(), name='articles'),
     url(r'^articleDetail/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
 
     # article-reply
