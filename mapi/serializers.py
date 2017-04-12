@@ -93,6 +93,12 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class BulletinBoardSerializer(serializers.ModelSerializer):
+    link = serializers.SerializerMethodField('board_id_link')
+
     class Meta:
         model = BulletinBoard
-        fields = ('id', 'title', 'desc')
+        fields = ('id', 'title', 'desc', 'link')
+
+    @staticmethod
+    def board_id_link(obj):
+        return '/articles?board_id={}'.format(obj.id)

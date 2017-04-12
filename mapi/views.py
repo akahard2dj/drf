@@ -537,6 +537,7 @@ class InitDonkey(APIView):
                 'data': {
                     'is_anonymous': True,
                     'board': serializer.data,
+                    'board_url': ['articles?board_id=1']
                 }
             }
             return Response(res, status=status.HTTP_200_OK)
