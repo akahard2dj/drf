@@ -54,7 +54,7 @@ class DonkeyUser(AbstractBaseUser):
 
     nickname = models.CharField(null=False, max_length=100, default=random_digit_and_number)
     university = models.ForeignKey(University)
-    #department = models.OneToOneField(Department)
+    department = models.ForeignKey(Department)
     #name_tag = models.ManyToManyField(NameTag, through='NameTag')
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -102,6 +102,7 @@ class DonkeyUser(AbstractBaseUser):
 
     def user_save(self, *args, **kwargs):
         key_email = kwargs.pop('key_email')
+        dept_id = kwargs.pop('department_id')
         email_domain = key_email.split('@')[-1]
         crypto = UserCrypto()
         try:
@@ -111,5 +112,6 @@ class DonkeyUser(AbstractBaseUser):
         else:
             self.email = crypto.encode(key_email)
             self.university = univ_from_db
+            self.department = Department.objects.get(pk=dept_id)
             self.save()
             #super(DonkeyUser, self).save(*args, **kwargs)
