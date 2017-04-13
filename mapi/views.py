@@ -326,6 +326,7 @@ def confirm_auth_key(request):
             encrypted_email = crypto.encode(key_email)
 
             if DonkeyUser.objects.filter(email=encrypted_email).exists():
+                # FIXME: Why encrypted_email need to encode twice?
                 encrypted_email = crypto.encode(key_email)
                 user = DonkeyUser.objects.get(email=encrypted_email)
                 token = Token.objects.get(user_id=user.id)
@@ -381,6 +382,15 @@ def confirm_auth_key(request):
 @cache_page(30)
 @api_view(['GET'])
 def get_departments(request):
+    # Don't need to check request.method == 'GET'
+    # Consider below way to reduce code lines
+    '''
+    key_email = request.GET.get('email', '')
+    auth_code = request.GET.get('auth_code', '')
+    if not key_email or not auth_code:
+        res = {'msg': 'failed'}
+    '''
+
     is_email_key = request.method == 'GET' and 'email' in request.GET
     is_authcode_key = request.method == 'GET' and 'auth_code' in request.GET
 
@@ -664,6 +674,7 @@ class ArticleList(APIView):
             }
             return Response(res, status=status.HTTP_200_OK)
 
+        # FIXME: may be TypeValueError when board_pk is not number.
         board_id = int(board_pk)
         items.update({'user': request.user.id})
         items.update({'board': board_id})

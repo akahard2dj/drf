@@ -29,10 +29,12 @@ class UserCrypto:
         self.encode = lambda s: base64.b64encode(cipher.encrypt(pad(s)))
         self.decode = lambda e: cipher.decrypt(base64.b64decode(e)).decode("utf-8").rstrip(PADDING)
 
+    # TODO: why don't we change to static method?
     def encode(self, data):
         encoded = self.encode(data)
         return encoded
 
+    # TODO: why don't we change to static method?
     def decode(self, data):
         decoded = self.decode(data)
         return decoded
