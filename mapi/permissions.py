@@ -26,28 +26,40 @@ class IsBoardOwner(permissions.BasePermission):
 
 class ArticlesPermission(permissions.BasePermission):
     def has_permission(self, request, view):
+        # access url variable by request
+        # print('##', request.resolver_match.kwargs)
         if request.method == 'POST':
             user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-            try:
-                board_id = int(request.GET['board_id'])
-            except KeyError:
-                return False
+            board_id = int(request.resolver_match.kwargs.get('board_pk'))
             user = DonkeyUser.objects.get(email=request.user)
 
             return not user.is_reported and user_board_connector.check_bulletinboard_id(board_id)
 
         if request.method == 'GET':
-            if int(request.GET['board_id']) == 1:
+            board_id = int(request.resolver_match.kwargs.get('board_pk'))
+            if board_id == 1:
                 return True
             else:
                 if request.user == AnonymousUser():
                     return False
                 else:
                     user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-                    try:
-                        board_id = request.GET['board_id']
-                    except KeyError:
-                        return False
+
+                    return user_board_connector.check_bulletinboard_id(board_id)
+
+
+class ArticleDetailPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method == 'GET':
+            board_id = int(request.resolver_match.kwargs.get('board_pk'))
+            if board_id == 1:
+                return True
+            # other board (ex. a default university bulletin board)
+            else:
+                if request.user == AnonymousUser():
+                    return False
+                else:
+                    user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
 
                     return user_board_connector.check_bulletinboard_id(board_id)
 
