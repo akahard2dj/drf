@@ -45,11 +45,13 @@ class ArticleAddSerializer(serializers.ModelSerializer):
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.nickname')
-    board = serializers.ReadOnlyField(source='board.title')
+    #board = serializers.ReadOnlyField(source='board.title')
 
     class Meta:
         model = Article
-        fields = ('id', 'user', 'board', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')
+        fields = ('id', 'user', 'title', 'content', 'created_at', 'modified_at', 'views')
+        # yellow_cards, like -> Meta
+        #fields = ('id', 'user', 'title', 'content', 'created_at', 'modified_at', 'views', 'yellow_cards', 'likes')
 
 
 class ArticleReplySerializer(serializers.ModelSerializer):
