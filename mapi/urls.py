@@ -22,10 +22,17 @@ urlpatterns = [
     # registration : user registration
     url(r'^registration/$', views.registration, name='registration'),
 
+
+    # new url mapping
+    # providing a list of articles
+    url(r'^board/(?P<board_pk>[0-9]+)$', views.ArticleList.as_view(), name='list_articles'),
+    url(r'^board/(?P<board_pk>[0-9]+)/article/(?P<article_pk>[0-9]+)$', views.ArticleDetail.as_view(), name='detail-article'),
+
     # articles : listing articles
     # articles-add : adding an article
     url(r'^articles$', views.ArticleList.as_view(), name='articles'),
-    url(r'^articleDetail/(?P<pk>[0-9]+)/$', views.ArticleDetail.as_view(), name='articles-detail'),
+    #url(r'^articleDetail/(?P<article_pk>[0-9]+)/boardId/(?P<board_id>[0-9]+)$', views.ArticleDetail.as_view(), name='articles'),
+    url(r'^articleDetail/(?P<article_pk>[0-9]+)$', views.ArticleDetail.as_view(), name='articles-detail'),
 
     # article-reply
     url(r'^articleDetail/(?P<article_pk>[0-9]+)/articleReplies/$', views.ArticleReplyList.as_view(), name='article-reply'),
