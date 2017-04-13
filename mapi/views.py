@@ -562,10 +562,8 @@ class InitDonkey(APIView):
             return Response(res, status=status.HTTP_200_OK)
 
 
-
 class ArticleList(APIView):
     permission_classes = (
-        #IsBoraApiAuthenticated,
         bora_permissions.ArticlesPermission,
     )
     authentication_classes = (
@@ -573,16 +571,15 @@ class ArticleList(APIView):
     )
 
     @method_decorator(never_cache)
-    def get(self, request, format=None):
+    def get(self, request, board_pk, format=None):
         is_offset = request.method == 'GET' and 'offset' in request.GET
         is_page = request.method == 'GET' and 'page' in request.GET
-
-        board_id = int(request.GET['board_id'])
+        board_id = int(board_pk)
 
         if is_offset:
             n_offset = int(request.GET['offset'])
         else:
-            n_offset = 10
+            n_offset = 3
 
         if is_page:
             n_page = int(request.GET['page'])
@@ -606,6 +603,7 @@ class ArticleList(APIView):
                     'is_empty': True,
                 }
             }
+            return Response(res, status=status.HTTP_200_OK)
 
         n_start = (n_page-1) * n_offset
         n_end = n_page * n_offset
@@ -645,19 +643,18 @@ class ArticleList(APIView):
                     'first_id': first_id,
                     'n_articles': n_articles,
                     'is_next': True,
-                    'next_url': 'articles?board_id={}&page={}&offset={}&last_id={}'
+                    'next_url': '/board/{}&page={}&offset={}&last_id={}'
                         .format(board_id, n_page+1, n_offset, first_id)
                 }
             }
             return Response(res, status=status.HTTP_200_OK)
 
-    def post(self, request, format=None):
+    def post(self, request, board_pk, format=None):
         request_data = request.data
         is_title = 'title' in request_data
         is_content = 'content' in request_data
-        is_board_id = request.method == 'POST' and 'board_id' in request.GET
 
-        if is_title and is_content and is_board_id:
+        if is_title and is_content:
             items = request_data
         else:
             res = {
@@ -667,8 +664,9 @@ class ArticleList(APIView):
             }
             return Response(res, status=status.HTTP_200_OK)
 
+        board_id = int(board_pk)
         items.update({'user': request.user.id})
-        items.update({'board': request.GET['board_id']})
+        items.update({'board': board_id})
 
         serializer = ArticleAddSerializer(data=items)
 
@@ -689,6 +687,80 @@ class ArticleList(APIView):
             return Response(res, status=status.HTTP_200_OK)
 
 
+class ArticleDetail(APIView):
+    permission_classes = (
+        bora_permissions.ArticlesPermission,
+    )
+    authentication_classes = (
+        BoraApiAuthentication,
+    )
+
+    @staticmethod
+    def get_article(article_pk):
+        is_query = False
+        try:
+            article = Article.objects.get(pk=article_pk)
+        except Article.DoesNotExist:
+            article = None
+        else:
+            is_query = True
+
+        return is_query, article
+
+    #@cache_page(60)
+    @method_decorator(never_cache)
+    def get(self, request, board_pk, article_pk, format=None):
+        is_board_id = request.method == 'GET' and 'board_id' in request.GET
+        board_id = int(board_pk)
+
+        is_query, article = self.get_article(article_pk)
+
+        if is_query:
+            # status checking 0: active, 1: reported, 2:inactive
+            if article.status == 0:
+                # board_id vs article.board_id checking
+                if board_id != article.board_id:
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect board id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
+
+                if request.user.id != article.user_id:
+                    article.increase_view_count()
+
+                serializer = ArticleDetailSerializer(article)
+                res = {
+                    'code': '200',
+                    'msg': 'success',
+                    'detail': 'query ok',
+                    'data': {
+                        'article': serializer.data,
+                        #'reply_link':
+                    }
+                }
+                return Response(res, status=status.HTTP_200_OK)
+            else:
+                # invalid access
+                res = {
+                    'code': '400',
+                    'msg': 'failed',
+                    'detail': 'invalid request (incorrect article id)'
+                }
+                return Response(res, status=status.HTTP_200_OK)
+
+        else:
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'db does not response'
+            }
+            return Response(res, status=status.HTTP_200_OK)
+
+
+
+'''
 class ArticleDetail(APIView):
     permission_classes = (permissions.IsAuthenticated, )
 
@@ -768,7 +840,7 @@ class ArticleDetail(APIView):
                 return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
-
+'''
 
 class ArticleReplyList(APIView):
     permission_classes = (permissions.IsAuthenticated, )
