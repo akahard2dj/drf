@@ -25,8 +25,8 @@ urlpatterns = [
 
     # new url mapping
     # providing a list of articles
-    url(r'^board/(?P<board_pk>[0-9]+)$', views.ArticleList.as_view(), name='list_articles'),
-    url(r'^board/(?P<board_pk>[0-9]+)/article/(?P<article_pk>[0-9]+)$', views.ArticleDetail.as_view(), name='detail-article'),
+    url(r'^boards/(?P<board_pk>[0-9]+)$', views.ArticleList.as_view(), name='list_articles'),
+    url(r'^boards/(?P<board_pk>[0-9]+)/articles/(?P<article_pk>[0-9]+)$', views.ArticleDetail.as_view(), name='detail-article'),
 
     # articles : listing articles
     # articles-add : adding an article

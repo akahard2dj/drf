@@ -645,14 +645,14 @@ class ArticleList(APIView):
                 'msg': 'success',
                 'detail': 'articles list',
                 'data': {
-                    'is_empty': False,
+                    #'is_empty': False,
                     'articles': serializer.data,
                     'board_id': board_id,
-                    'offset': n_offset,
-                    'page': n_page + 1,
-                    'first_id': first_id,
-                    'n_articles': n_articles,
-                    'is_next': True,
+                    #'offset': n_offset,
+                    #'page': n_page + 1,
+                    #'first_id': first_id,
+                    #'n_articles': n_articles,
+                    #'is_next': True,
                     'next_url': '/board/{}&page={}&offset={}&last_id={}'
                         .format(board_id, n_page+1, n_offset, first_id)
                 }
@@ -686,14 +686,20 @@ class ArticleList(APIView):
             res = {
                 'code': '200',
                 'msg': 'success',
-                'detail': 'article is saved'
+                'detail': 'article is saved',
+                'data': {
+                    'result': True,
+                },
             }
             return Response(res, status=status.HTTP_200_OK)
         else:
             res = {
                 'code': '400',
                 'msg': 'failed',
-                'detail': 'serializer validation is failed'
+                'detail': 'serializer validation is failed',
+                'data': {
+                    'result': False,
+                }
             }
             return Response(res, status=status.HTTP_200_OK)
 
