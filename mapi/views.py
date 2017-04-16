@@ -589,7 +589,7 @@ class ArticleList(APIView):
         if is_offset:
             n_offset = int(request.GET['offset'])
         else:
-            n_offset = 3
+            n_offset = 10
 
         if is_page:
             n_page = int(request.GET['page'])
@@ -653,7 +653,7 @@ class ArticleList(APIView):
                     #'first_id': first_id,
                     #'n_articles': n_articles,
                     #'is_next': True,
-                    'next_url': '/boards/{}&page={}&offset={}&last_id={}'
+                    'next_url': '/boards/{}?page={}&offset={}&last_id={}'
                         .format(board_id, n_page+1, n_offset, first_id)
                 }
             }

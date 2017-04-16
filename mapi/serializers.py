@@ -11,14 +11,16 @@ from mapi.models import ArticleReply
 
 
 class ArticleSerializer(serializers.ModelSerializer):
-    user = serializers.ReadOnlyField(source='user.nickname')
-    board = serializers.ReadOnlyField(source='board.title')
+    nickname = serializers.ReadOnlyField(source='user.nickname')
+    #board = serializers.ReadOnlyField(source='board.title')
     title = serializers.SerializerMethodField('custom_board_title')
     created_at = serializers.SerializerMethodField('localtime_created_at')
-
+    content = serializers.SerializerMethodField('shorten_content')
+    #view_count = serializers.ReadOnlyField(source='board.views')
+    #reported_count = serializers.ReadOnlyField(source='board.yellow_cards')
     class Meta:
         model = Article
-        fields = ('id', 'user', 'board', 'title', 'views', 'likes', 'created_at')
+        fields = ('id', 'nickname', 'title', 'content', 'views', 'yellow_cards', 'likes', 'created_at')
 
     @staticmethod
     def custom_board_title(obj):
@@ -33,6 +35,9 @@ class ArticleSerializer(serializers.ModelSerializer):
     def localtime_created_at(obj):
         return timezone.localtime(obj.created_at)
 
+    @staticmethod
+    def shorten_content(obj):
+        return obj.content[:100]
 
 class ArticleAddSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=DonkeyUser.objects.all())
