@@ -6,6 +6,8 @@ from core.models.bulletin_board import BulletinBoard
 from core.models.connector import UserBoardConnector
 from core.models.category import *
 
+from mapi.errors import *
+
 
 class IsBoraApiAuthenticated(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -29,29 +31,45 @@ class ArticlesPermission(permissions.BasePermission):
         # access url variable by request
         # print('##', request.resolver_match.kwargs)
         if request.method == 'POST':
-            user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
-            board_id = int(request.resolver_match.kwargs.get('board_pk'))
-            user = DonkeyUser.objects.get(email=request.user)
+            try:
+                user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+            except UserBoardConnector.DoesNotExist:
+                return bad_request('Invalid variables')
+            else:
+                try:
+                    board_id = int(request.resolver_match.kwargs.get('board_pk'))
+                except (TypeError, ValueError):
+                    return bad_request('Invalid variables')
+                else:
+                    user = DonkeyUser.objects.get(email=request.user)
 
             return not user.is_reported and user_board_connector.check_bulletinboard_id(board_id)
 
         if request.method == 'GET':
-            board_id = int(request.resolver_match.kwargs.get('board_pk'))
-            if board_id == 1:
-                return True
+            try:
+                board_id = int(request.resolver_match.kwargs.get('board_pk'))
+            except (TypeError, ValueError):
+                return bad_request('Invalid variables')
             else:
-                if request.user == AnonymousUser():
-                    return False
+                if board_id == 1:
+                    return True
                 else:
-                    user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+                    if request.user == AnonymousUser():
+                        return False
+                    else:
+                        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
 
-                    return user_board_connector.check_bulletinboard_id(board_id)
+                        return user_board_connector.check_bulletinboard_id(board_id)
 
 
 class ArticleDetailPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        if request.method == 'GET':
+        try:
             board_id = int(request.resolver_match.kwargs.get('board_pk'))
+        except (TypeError, ValueError):
+            return bad_request('Invalid variables')
+
+        if request.method == 'GET':
             if board_id == 1:
                 return True
             # other board (ex. a default university bulletin board)
@@ -63,30 +81,72 @@ class ArticleDetailPermission(permissions.BasePermission):
 
                     return user_board_connector.check_bulletinboard_id(board_id)
 
-
-class IsOwnerOrReadOnly(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        #if request.method in permissions.SAFE_METHODS:
-        #    return True
-        print(obj.owner, request.user)
-        return request.user == obj
-
-
-class IsDeleteAndIsOwner(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        is_owner = request.user == obj
-        is_delete = request.method == 'DELETE'
-
-        return is_owner and is_delete
+        if request.method in ['DELETE', 'PUT']:
+            if request.user == AnonymousUser():
+                return False
+            else:
+                user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+                return user_board_connector.check_bulletinboard_id(board_id)
 
 
-class IsPostAndIsAuthenticated(permissions.BasePermission):
+class ArticleRepliesPermission(permissions.BasePermission):
     def has_permission(self, request, view):
+        # access url variable by request
+        # print('##', request.resolver_match.kwargs)
         if request.method == 'POST':
-            is_post = True
-        else:
-            is_post = False
+            try:
+                user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+            except UserBoardConnector.DoesNotExist:
+                return bad_request('Invalid variables')
+            else:
+                try:
+                    board_id = int(request.resolver_match.kwargs.get('board_pk'))
+                except (TypeError, ValueError):
+                    return bad_request('Invalid variables')
+                else:
+                    user = DonkeyUser.objects.get(email=request.user)
 
-        is_auth = request.user and request.user.is_authenticated()
+            return not user.is_reported and user_board_connector.check_bulletinboard_id(board_id)
 
-        return is_post and is_auth
+        if request.method == 'GET':
+            try:
+                board_id = int(request.resolver_match.kwargs.get('board_pk'))
+            except (TypeError, ValueError):
+                return bad_request('Invalid variables')
+            else:
+                if board_id == 1:
+                    return True
+                else:
+                    if request.user == AnonymousUser():
+                        return False
+                    else:
+                        user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+
+                        return user_board_connector.check_bulletinboard_id(board_id)
+
+
+class ArticleReplyDetailPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        try:
+            board_id = int(request.resolver_match.kwargs.get('board_pk'))
+        except (TypeError, ValueError):
+            return bad_request('Invalid variables')
+
+        if request.method == 'GET':
+            if board_id == 1:
+                return True
+            # other board (ex. a default university bulletin board)
+            else:
+                if request.user == AnonymousUser():
+                    return False
+                else:
+                    user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+
+                    return user_board_connector.check_bulletinboard_id(board_id)
+
+        if request.method in ['DELETE', 'PUT', 'POST']:
+            if request.user == AnonymousUser():
+                return False
+            else:
+                user_board_connector = UserBoardConnector.objects.get(donkey_user_id=request.user.id)
+                return user_board_connector.check_bulletinboard_id(board_id)
