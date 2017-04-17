@@ -16,10 +16,14 @@ Including another URLconf
 from django.conf.urls import url, include
 from django.contrib import admin
 from rest_framework.authtoken import views
+#from rest_framework_swagger.views import get_swagger_view
+
+#schema_view = get_swagger_view('OkeyDonkey API')
 
 urlpatterns = [
-    url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
-    url(r'^api-token-auth/', views.obtain_auth_token),
-    url(r'^', include('mapi.urls')),
-    url(r'^admin/', admin.site.urls),
+    #url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    #url(r'^api-token-auth/', views.obtain_auth_token),
+    url(r'^api-v1/', include('mapi.urls')),
+    #url(r'^admin/', admin.site.urls),
+    #url(r'^docs', schema_view)
 ]
