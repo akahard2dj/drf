@@ -26,6 +26,8 @@ from mapi.serializers import BulletinBoardSerializer
 from mapi.permissions import IsBoraApiAuthenticated
 from mapi import permissions as bora_permissions
 
+from mapi.errors import *
+
 from core.json.response_wrapper import DonkeyJsonResponse
 from core.models.donkey_user import DonkeyUser
 from core.models.bulletin_board import BulletinBoard
@@ -580,21 +582,48 @@ class ArticleList(APIView):
         BoraApiAuthentication,
     )
 
+    @staticmethod
+    def check_offset(offset_string):
+        if offset_string == 'None':
+            n_offset = 10
+        else:
+            try:
+                n_offset = int(offset_string)
+            except ValueError:
+                return bad_request('Invalid Variables')
+            else:
+                if n_offset <= 0:
+                    return bad_request('Invalid Variables')
+                if n_offset > 100:
+                    return bad_request('Invalid Variables')
+        return n_offset
+
+    @staticmethod
+    def check_page(page_string):
+        if page_string == 'None':
+            n_page = 1
+        else:
+            try:
+                n_page = int(page_string)
+            except ValueError:
+                return bad_request('Invalid Variables')
+            else:
+                if n_page <= 0:
+                    return bad_request('Invalid Variables')
+        return n_page
+
     @method_decorator(never_cache)
     def get(self, request, board_pk, format=None):
-        is_offset = request.method == 'GET' and 'offset' in request.GET
-        is_page = request.method == 'GET' and 'page' in request.GET
-        board_id = int(board_pk)
+        try:
+            board_id = int(board_pk)
+        except (TypeError, ValueError):
+            return bad_request('invalid variables')
 
-        if is_offset:
-            n_offset = int(request.GET['offset'])
-        else:
-            n_offset = 10
+        offset_check = request.GET.get('offset', 'None')
+        n_offset = self.check_offset(offset_check)
 
-        if is_page:
-            n_page = int(request.GET['page'])
-        else:
-            n_page = 1
+        page_check = request.GET.get('page', 'None')
+        n_page = self.check_page(page_check)
 
         if n_page == 1:
             try:
@@ -602,16 +631,19 @@ class ArticleList(APIView):
             except AttributeError:
                 first_id = 0
         else:
-            first_id = int(request.GET['last_id'])
+            first_id_check = request.GET.get('last_id', 'None')
+            if first_id_check == 'None':
+                return bad_request('Invalid Variables')
+            try:
+                first_id = int(first_id_check)
+            except ValueError:
+                return bad_request('Invalid Variables')
 
         if first_id == 0:
             res = {
                 'code': '200',
                 'msg': 'success',
                 'detail': 'empty article list',
-                #'data': {
-                #    'is_empty': True,
-                #}
             }
             return Response(res, status=status.HTTP_200_OK)
 
@@ -627,14 +659,8 @@ class ArticleList(APIView):
                 'msg': 'success',
                 'detail': 'articles list',
                 'data': {
-                    #'is_empty': False,
                     'articles': serializer.data,
                     'board_id': board_id,
-                    #'offset': n_offset,
-                    #'page': n_page,
-                    #'first_id': first_id,
-                    #'n_articles': n_articles,
-                    #'is_next': False
                 }
             }
             return Response(res, status=status.HTTP_200_OK)
@@ -645,14 +671,8 @@ class ArticleList(APIView):
                 'msg': 'success',
                 'detail': 'articles list',
                 'data': {
-                    #'is_empty': False,
                     'articles': serializer.data,
                     'board_id': board_id,
-                    #'offset': n_offset,
-                    #'page': n_page + 1,
-                    #'first_id': first_id,
-                    #'n_articles': n_articles,
-                    #'is_next': True,
                     'next_url': '/boards/{}?page={}&offset={}&last_id={}'
                         .format(board_id, n_page+1, n_offset, first_id)
                 }
@@ -660,6 +680,11 @@ class ArticleList(APIView):
             return Response(res, status=status.HTTP_200_OK)
 
     def post(self, request, board_pk, format=None):
+        try:
+            board_id = int(board_pk)
+        except (TypeError, ValueError):
+            return bad_request('invalid variables')
+
         request_data = request.data
         is_title = 'title' in request_data
         is_content = 'content' in request_data
@@ -674,8 +699,6 @@ class ArticleList(APIView):
             }
             return Response(res, status=status.HTTP_200_OK)
 
-        # FIXME: may be TypeValueError when board_pk is not number.
-        board_id = int(board_pk)
         items.update({'user': request.user.id})
         items.update({'board': board_id})
 
@@ -706,7 +729,7 @@ class ArticleList(APIView):
 
 class ArticleDetail(APIView):
     permission_classes = (
-        bora_permissions.ArticlesPermission,
+        bora_permissions.ArticleDetailPermission,
     )
     authentication_classes = (
         BoraApiAuthentication,
@@ -727,8 +750,10 @@ class ArticleDetail(APIView):
     #@cache_page(60)
     @method_decorator(never_cache)
     def get(self, request, board_pk, article_pk, format=None):
-        is_board_id = request.method == 'GET' and 'board_id' in request.GET
-        board_id = int(board_pk)
+        try:
+            board_id = int(board_pk)
+        except (TypeError, ValueError):
+            return bad_request('invalid variables')
 
         is_query, article = self.get_article(article_pk)
 
@@ -775,197 +800,492 @@ class ArticleDetail(APIView):
             }
             return Response(res, status=status.HTTP_200_OK)
 
-
-
-'''
-class ArticleDetail(APIView):
-    permission_classes = (permissions.IsAuthenticated, )
-
-    def get_object(self, pk):
+    def delete(self, request, board_pk, article_pk, format=None):
         try:
-            return Article.objects.get(pk=pk)
-        except Article.DoesNotExist:
-            return Response({'msg': 'not found'}, status=status.HTTP_404_NOT_FOUND)
+            board_id = int(board_pk)
+        except (TypeError, ValueError):
+            return bad_request('invalid variables')
 
-    @method_decorator(never_cache)
-    def get(self, request, pk, format=None):
-        request_data = request.data
-        is_board_id = 'board_id' in request_data
-
-        if is_board_id:
-            board_id = request.data['board_id']
-        else:
-            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if check_board(request.user.id, request.data['board_id']):
-            article = self.get_object(pk)
-            # status checking
+        is_query, article = self.get_article(article_pk)
+        if is_query:
             if article.status == 0:
-                if int(board_id) != article.board_id:
-                    return Response({'msg': 'abnormat request'}, status=status.HTTP_406_NOT_ACCEPTABLE)
-
-                if request.user.id != article.user_id:
-                    article.increase_view_count()
-                serializer = ArticleDetailSerializer(article)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            else:
-                return Response({'msg': 'invalid access'}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
-
-    def delete(self, request, pk):
-        if check_board(request.user.id, request.data['board_id']):
-            article = self.get_object(pk)
-            if article.user == request.user:
-                if article.status == 2:
-                    return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
-                else:
+                if board_id != article.board_id:
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect board id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
+                if request.user.id == article.user.id:
                     article.status = 2
                     article.save()
+                    res = {
+                        'code': '200',
+                        'msg': 'success',
+                        'detail': 'successfully deleted',
+                        }
 
-                return Response({'msg': 'ok'}, status=status.HTTP_200_OK)
+                    return Response(res, status=status.HTTP_200_OK)
+                else:
+                    # invalid access
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect article id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
             else:
-                return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
+                # invalid access
+                res = {
+                    'code': '400',
+                    'msg': 'failed',
+                    'detail': 'invalid request (incorrect article id)'
+                }
+                return Response(res, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'db does not response'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
-    def put(self, request, pk):
+    def put(self, request, board_pk, article_pk, format=None):
+        try:
+            board_id = int(board_pk)
+        except (TypeError, ValueError):
+            return bad_request('invalid variables')
+
         request_data = request.data
         is_title = 'title' in request_data
         is_content = 'content' in request_data
-        is_board_id = 'board_id' in request_data
 
-        if is_title and is_content and is_board_id:
+        if is_title and is_content:
             items = request_data
         else:
-            return Response({'msg': 'Not enough fields'}, status=status.HTTP_400_BAD_REQUEST)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'Not enough fields',
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
-        if check_board(request.user.id, request.data['board_id']):
-            article = self.get_object(pk)
-            if article.user == request.user:
-                items.update({'user': request.user.id})
-                items.update({'board': request_data['board_id']})
-                serializer = ArticleAddSerializer(data=items)
-                if serializer.is_valid():
-                    article.title = items['title']
-                    article.content = items['content']
-                    article.save()
-                    return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        is_query, article = self.get_article(article_pk)
+        if is_query:
+            if article.status == 0:
+                if board_id != article.board_id:
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect board id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
+
+                if request.user.id == article.user.id:
+                    items.update({'user': request.user.id})
+                    items.update({'board': board_id})
+
+                    serializer = ArticleAddSerializer(data=items)
+
+                    if serializer.is_valid():
+                        article.title = items['title']
+                        article.content = items['content']
+                        article.save()
+                        res = {
+                            'code': '200',
+                            'msg': 'success',
+                            'detail': 'article is successfully updated',
+                            'data': {
+                                'result': True,
+                            },
+                        }
+                        return Response(res, status=status.HTTP_200_OK)
+                    else:
+                        res = {
+                            'code': '400',
+                            'msg': 'failed',
+                            'detail': 'serializer validation is failed',
+                            'data': {
+                                'result': False,
+                            }
+                        }
+                        return Response(res, status=status.HTTP_200_OK)
+
                 else:
-                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                    # invalid access
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect article id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
+
             else:
-                return Response({'msg': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
+                # invalid access
+                res = {
+                    'code': '400',
+                    'msg': 'failed',
+                    'detail': 'invalid request (incorrect article id)'
+                }
+                return Response(res, status=status.HTTP_200_OK)
+
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
-'''
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'db does not response'
+            }
+            return Response(res, status=status.HTTP_200_OK)
+
 
 class ArticleReplyList(APIView):
-    permission_classes = (permissions.IsAuthenticated, )
+    permission_classes = (
+        bora_permissions.ArticlesPermission,
+    )
+
+    authentication_classes(
+        BoraApiAuthentication,
+    )
+
+    @staticmethod
+    def integer_check(string_value):
+        try:
+            res = int(string_value)
+        except (TypeError, ValueError):
+            return bad_request('invalid variables')
+
+        return res
+
+    @staticmethod
+    def get_article(article_pk):
+        is_query = False
+        try:
+            article = Article.objects.get(pk=article_pk)
+        except Article.DoesNotExist:
+            article = None
+        else:
+            is_query = True
+
+        return is_query, article
 
     @method_decorator(never_cache)
-    def get(self, request, article_pk, format=None):
-        request_data = request.data
-        is_board_id = 'board_id' in request_data
+    def get(self, request, board_pk, article_pk, format=None):
+        board_id = self.integer_check(board_pk)
+        article_id = self.integer_check(article_pk)
 
-        if not is_board_id:
-            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+        is_query, article = self.get_article(article_pk)
+        if is_query:
+            if article.status == 0:
+                if board_id != article.board_id:
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect board id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
 
-        if check_board(request.user.id, request.data['board_id']):
-            replies = ArticleReply.objects.filter(article_id=article_pk).all()
+                replies = ArticleReply.objects.filter(article_id=article_id).all()
+                serializer = ArticleReplySerializer(replies, many=True)
+                res = {
+                    'code': '200',
+                    'msg': 'success',
+                    'detail': 'replies',
+                    'data': {
+                        'replies': serializer.data,
+                    }
+                }
+                return Response(res, status=status.HTTP_200_OK)
 
-            serializer = ArticleReplySerializer(replies, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                # invalid access
+                res = {
+                    'code': '400',
+                    'msg': 'failed',
+                    'detail': 'invalid request (incorrect article id)'
+                }
+                return Response(res, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'db does not response'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
-    def post(self, request, article_pk, format=None):
+    def post(self, request, board_pk, article_pk, format=None):
+        board_id = self.integer_check(board_pk)
+        article_id = self.integer_check(article_pk)
+
         request_data = request.data
-        is_board_id = 'board_id' in request_data
         is_content = 'content' in request_data
 
-        if is_board_id and is_content:
-            content = request.data['content']
+        if is_content:
+            content = request_data['content']
         else:
-            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+            return bad_request('not enough field data')
 
-        if check_board(request.user.id, request.data['board_id']):
-            reply = ArticleReply.add_root(
-                content=content,
-                article=Article.objects.get(pk=article_pk),
-                user=DonkeyUser.objects.get(pk=request.user.id)
-            )
-            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+        is_query, article = self.get_article(article_pk)
+        if is_query:
+            if article.status == 0:
+                if board_id != article.board_id:
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect board id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
+
+                reply = ArticleReply
+                reply.add_root(
+                    content=content,
+                    article=Article.objects.get(pk=article_id),
+                    user=DonkeyUser.objects.get(pk=request.user.id)
+                )
+                res = {
+                    'code': '200',
+                    'msg': 'success',
+                    'detail': 'reply ok'
+                }
+                return Response(res, status=status.HTTP_200_OK)
+
+            else:
+                # invalid access
+                res = {
+                    'code': '400',
+                    'msg': 'failed',
+                    'detail': 'invalid request (incorrect article id)'
+                }
+                return Response(res, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'db does not response'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
 
 class ArticleReplyDetail(APIView):
-    #TODO : need to be implemented of reply depth(initial condition : depth =3 --> reply(1) - reply(11) - reply(111)
-    permission_classes = (permissions.IsAuthenticated, )
+    permission_classes = (
+        bora_permissions.ArticleReplyDetailPermission,
+    )
 
-    def post(self, request, article_pk, reply_pk, format=None):
+    authentication_classes(
+        BoraApiAuthentication,
+    )
+
+    @staticmethod
+    def integer_check(string_value):
+        try:
+            res = int(string_value)
+        except (TypeError, ValueError):
+            return bad_request('invalid variables')
+
+        return res
+
+    @staticmethod
+    def get_article(article_pk):
+        is_query = False
+        try:
+            article = Article.objects.get(pk=article_pk)
+        except Article.DoesNotExist:
+            article = None
+        else:
+            is_query = True
+
+        return is_query, article
+
+    @staticmethod
+    def get_reply(article_pk, reply_pk):
+        is_query = False
+        try:
+            reply = ArticleReply.objects.filter(article_id=article_pk).get(pk=reply_pk)
+        except ArticleReply.DoesNotExist:
+            reply = None
+        else:
+            is_query = True
+
+        return is_query, reply
+
+    def post(self, request, board_pk, article_pk, reply_pk, format=None):
+        board_id = self.integer_check(board_pk)
+        article_id = self.integer_check(article_pk)
+        reply_id = self.integer_check(reply_pk)
+
         request_data = request.data
-        is_board_id = 'board_id' in request_data
         is_content = 'content' in request_data
 
-        if is_board_id and is_content:
-            board_id = request.data['board_id']
-            content = request.data['content']
+        if is_content:
+            content = request_data['content']
         else:
-            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+            return bad_request('not enough field data')
 
-        if check_board(request.user.id, request.data['board_id']):
-            get_reply = lambda node_id: ArticleReply.objects.filter(article_id=article_pk).get(pk=node_id)
-            sub_reply = get_reply(reply_pk).add_child(
-                content=content,
-                article_id=article_pk,
-                user_id=request.user.id
-            )
-            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+        is_query, article = self.get_article(article_pk)
+        if is_query:
+            if article.status == 0:
+                if board_id != article.board_id:
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect board id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
+
+                is_reply_query, target_reply = self.get_reply(article_id, reply_id)
+                if is_reply_query:
+                    if target_reply.status == 0:
+                        target_reply.add_child(
+                            content=content,
+                            article_id=article_id,
+                            user_id=request.user.id
+                        )
+                        res = {
+                            'code': '200',
+                            'msg': 'success',
+                            'detail': 'reply ok'
+                        }
+                        return Response(res, status=status.HTTP_200_OK)
+                    else:
+                        return bad_request('invalid access')
+                else:
+                    return bad_request('db does not reponse')
+
+            else:
+                # invalid access
+                res = {
+                    'code': '400',
+                    'msg': 'failed',
+                    'detail': 'invalid request (incorrect article id)'
+                }
+                return Response(res, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'db does not response'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
-    def put(self, request, article_pk, reply_pk, format=None):
+    def put(self, request, board_pk, article_pk, reply_pk, format=None):
+        board_id = self.integer_check(board_pk)
+        article_id = self.integer_check(article_pk)
+        reply_id = self.integer_check(reply_pk)
+
         request_data = request.data
-        is_board_id = 'board_id' in request_data
         is_content = 'content' in request_data
 
-        if is_board_id and is_content:
-            content = request.data['content']
+        if is_content:
+            content = request_data['content']
         else:
-            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+            return bad_request('not enough field data')
 
-        if check_board(request.user.id, request.data['board_id']):
-            article_reply = ArticleReply.objects.get(pk=reply_pk)
-            if request.user == article_reply.user:
-                article_reply.content = content
-                article_reply.save()
+        is_query, article = self.get_article(article_pk)
+        if is_query:
+            if article.status == 0:
+                if board_id != article.board_id:
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect board id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
+
+                is_reply_query, target_reply = self.get_reply(article_id, reply_id)
+                if is_reply_query:
+                    if target_reply.user.id == request.user.id:
+                        if target_reply.status == 0:
+                            target_reply.content = content
+                            target_reply.save()
+                            res = {
+                                'code': '200',
+                                'msg': 'success',
+                                'detail': 'reply successfully updated'
+                            }
+                            return Response(res, status=status.HTTP_200_OK)
+                        else:
+                            return bad_request('invalid access')
+                    else:
+                        res = {
+                            'code': '400',
+                            'msg': 'failed',
+                            'detail': 'invalid request'
+                        }
+                        return Response(res, status=status.HTTP_200_OK)
+                else:
+                    return bad_request('db does not reponse')
+
             else:
-                return Response({'msg': 'Unauthorized request'}, status=status.HTTP_401_UNAUTHORIZED)
-
-            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+                # invalid access
+                res = {
+                    'code': '400',
+                    'msg': 'failed',
+                    'detail': 'invalid request (incorrect article id)'
+                }
+                return Response(res, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'db does not response'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
-    def delete(self, request, article_pk, reply_pk, format=None):
-        request_data = request.data
-        is_board_id = 'board_id' in request_data
+    def delete(self, request, board_pk, article_pk, reply_pk, format=None):
+        board_id = self.integer_check(board_pk)
+        article_id = self.integer_check(article_pk)
+        reply_id = self.integer_check(reply_pk)
 
-        if not is_board_id:
-            return Response({'msg': 'Not enough data'}, status=status.HTTP_400_BAD_REQUEST)
+        is_query, article = self.get_article(article_pk)
+        if is_query:
+            if article.status == 0:
+                if board_id != article.board_id:
+                    res = {
+                        'code': '400',
+                        'msg': 'failed',
+                        'detail': 'invalid request (incorrect board id)'
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
 
-        if check_board(request.user.id, request.data['board_id']):
-            article_reply = ArticleReply.objects.get(pk=reply_pk)
-            if request.user == article_reply.user:
-                #TODO status naming
-                article_reply.status = 2
-                article_reply.save()
+                is_reply_query, target_reply = self.get_reply(article_id, reply_id)
+                if is_reply_query:
+                    if target_reply.user.id == request.user.id:
+                        if target_reply.status == 0:
+                            target_reply.status = 2
+                            target_reply.save()
+                            res = {
+                                'code': '200',
+                                'msg': 'success',
+                                'detail': 'reply successfully delete'
+                            }
+                            return Response(res, status=status.HTTP_200_OK)
+                        else:
+                            return bad_request('invalid access')
+                    else:
+                        res = {
+                            'code': '400',
+                            'msg': 'failed',
+                            'detail': 'invalid request'
+                        }
+                        return Response(res, status=status.HTTP_200_OK)
+
+                else:
+                    return bad_request('db does not reponse')
+
             else:
-                return Response({'msg': 'Unauthorized request'}, status=status.HTTP_401_UNAUTHORIZED)
-
-            return Response({'msg': 'success'}, status=status.HTTP_200_OK)
+                # invalid access
+                res = {
+                    'code': '400',
+                    'msg': 'failed',
+                    'detail': 'invalid request (incorrect article id)'
+                }
+                return Response(res, status=status.HTTP_200_OK)
         else:
-            return Response({'msg': 'Invalid board id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            res = {
+                'code': '400',
+                'msg': 'failed',
+                'detail': 'db does not response'
+            }
+            return Response(res, status=status.HTTP_200_OK)
 
 
 class UserDetail(APIView):
