@@ -328,8 +328,6 @@ def confirm_auth_key(request):
             encrypted_email = crypto.encode(key_email)
 
             if DonkeyUser.objects.filter(email=encrypted_email).exists():
-                # FIXME: Why encrypted_email need to encode twice?
-                encrypted_email = crypto.encode(key_email)
                 user = DonkeyUser.objects.get(email=encrypted_email)
                 token = Token.objects.get(user_id=user.id)
                 # deleting caching
