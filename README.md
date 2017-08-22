@@ -20,7 +20,7 @@
 - (venv) python manage.py runserver
 
  
-======================
+<hr/>
  
 BORA Co., Ltd. is supported by JetBrains Open Source License.
 
