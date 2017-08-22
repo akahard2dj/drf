@@ -21,5 +21,7 @@
 
  
 BORA Co., Ltd. is supported by JetBrains Open Source License.
+
 Also drf project is granted by All-In-One-Estate Open Source License.
+
 <https://www.jetbrains.com/>
